@@ -22,20 +22,6 @@
 
 ---
 
-## RikkaLaw-US
-
-**RikkaLaw-US** is this codebase refocused as a U.S. legal research and case-management
-assistant — criminal law, post-conviction, habeas corpus, wrongful convictions — for
-licensed legal counsel who review every output. The assistant supports document analysis,
-research and rough drafting; it does **not** provide legal advice. Scope: U.S. law,
-English.
-
-Start here: **[docs/LEGAL-ASSISTANT.md](docs/LEGAL-ASSISTANT.md)** (blueprint: BYOK model
-assignment, knowledge base, citation verification via CourtListener, workspace bootstrap,
-long-horizon agents) and the bundled `skills/legal-assistant/` operating profile.
-
----
-
 ## Why this project
 
 ```

@@ -1,18 +1,7 @@
 {
   "version": 1,
-  "updated_at": "2026-11-17",
+  "updated_at": "2026-10-16",
   "skills": [
-    {
-      "name": "legal-assistant",
-      "title": "Legal Assistant (US criminal / habeas)",
-      "description": "Operating profile for U.S. criminal-law, habeas and wrongful-conviction work: no-legal-advice guardrails, CourtListener citation verification, matter workspaces with cold-memory knowledge bases, docx drafting, long-run sub-agent investigations.",
-      "category": "legal",
-      "license": "AGPL-3.0",
-      "size_kb": 9,
-      "runtime": "any",
-      "source_url": "https://github.com/justfukkinoff-oss/RikkaLaw-US/tree/main/skills/legal-assistant",
-      "is_bundled": false
-    },
     {
       "name": "auto-reply",
       "title": "Auto-reply",
