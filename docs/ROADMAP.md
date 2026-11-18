@@ -65,7 +65,8 @@ as one or more PRs that must pass the `debug-apk` CI build before merge.
 - [ ] Pass 2: delete the now-unreferenced tool sources, services (accessibility,
       notification listener), the Shizuku / Telegram / keyboard modules, lorebooks, and the
       Codex / Grok / AICore / LiteRT / llama.cpp provider code paths and native builds.
-- [ ] Translate remaining hard-coded Chinese UI strings and comments to English.
+- [x] Settings screens, string resources, workspace and assistant screens translated to English.
+- [ ] Translate remaining Chinese code comments and debug/developer screens.
 
 ### Phase 2 — Legal RAG engine (on-device)
 - [x] `legal/` package (raw SQLite via the app DB helper rather than Room): entities `LegalProject`, `LegalDocument`, `LegalChunk`,

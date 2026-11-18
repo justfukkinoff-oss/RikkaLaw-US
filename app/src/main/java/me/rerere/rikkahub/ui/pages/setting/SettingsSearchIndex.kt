@@ -29,10 +29,10 @@ data class SettingsSearchEntry(
  * Query match used by [SettingsSearchPage].
  *
  * The query is split on whitespace and every token has to hit one of the entry's searchable
- * strings, so "顶栏 高度" and "顶栏高度" find the same row, and a word that only appears inside a
+ * strings, so "top bar height" and "topbarheight" find the same row, and a word that only appears inside a
  * description or a page name still matches. The old whole-query `contains` returned nothing the
  * moment the query had a space in it or was one character longer than the stored wording
- * ("透明度" against a description that only says "完全透明").
+ * ("opacity" against a description that only says "fully transparent").
  */
 fun SettingsSearchEntry.matchesSearchQuery(query: String, text: (Int) -> String): Boolean {
     val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }

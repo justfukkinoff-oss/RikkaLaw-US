@@ -58,7 +58,7 @@ fun TTSProviderConfigure(
                     is TTSProviderSetting.Step -> "Step"
                     is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                     is TTSProviderSetting.FishAudio -> "Fish Audio"
-                    is TTSProviderSetting.Volcengine -> "火山引擎"
+                    is TTSProviderSetting.Volcengine -> "Volcengine"
                 },
                 options = providers,
                 readOnly = true,
@@ -75,7 +75,7 @@ fun TTSProviderConfigure(
                         TTSProviderSetting.MiMo::class -> "MiMo"
                         TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                         TTSProviderSetting.FishAudio::class -> "Fish Audio"
-                        TTSProviderSetting.Volcengine::class -> "火山引擎"
+                        TTSProviderSetting.Volcengine::class -> "Volcengine"
                         TTSProviderSetting.Step::class -> "Step"
                         else -> providerClass.simpleName ?: "Unknown"
                     }
@@ -257,7 +257,7 @@ private fun MiMoTTSConfiguration(
     setting: TTSProviderSetting.MiMo,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    // MiMo 配置均为自由输入 默认值只是占位
+    // MiMo settings are free-form input; the defaults are placeholders only
     // API Key
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
@@ -306,10 +306,10 @@ private fun MiMoTTSConfiguration(
     // Voice
     val voices = listOf(
         "mimo_default",
-        "冰糖",
-        "茉莉",
-        "苏打",
-        "白桦",
+        "冰糖", // Bingtang
+        "茉莉", // Moli
+        "苏打", // Suda
+        "白桦", // Baihua
         "Mia",
         "Chloe",
         "Milo",
@@ -986,10 +986,10 @@ private fun FishAudioTTSConfiguration(
         )
     }
 
-    // Model (下拉选择框 + 文本输入框，完全同 ElevenLabs 格式)
+    // Model (dropdown + text field, same layout as ElevenLabs)
     val models = listOf(
-        "s2.1-pro" to "S2.1-Pro (推荐)",
-        "s2.1-pro-free" to "S2.1-Pro Free (免费)",
+        "s2.1-pro" to "S2.1-Pro (recommended)",
+        "s2.1-pro-free" to "S2.1-Pro Free (free)",
         "s2-pro" to "S2-Pro",
         "s1" to "S1"
     )
@@ -1066,7 +1066,7 @@ private fun StepTTSConfiguration(
     // API Key
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text("从阶跃星辰官网获取密钥: platform.stepfun.com/interface-key") }
+        description = { Text("Get a key from StepFun: platform.stepfun.com/interface-key") }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1074,7 +1074,7 @@ private fun StepTTSConfiguration(
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("从阶跃星辰官网获取密钥") },
+            placeholder = { Text("API key from StepFun") },
         )
     }
 
@@ -1095,10 +1095,10 @@ private fun StepTTSConfiguration(
 
     // Model
     val models = listOf(
-        "step-tts-mini" to "step-tts-mini (轻量, 便宜)",
-        "step-tts-vivid" to "step-tts-vivid (情感丰富)",
-        "stepaudio-2.5-tts" to "stepaudio-2.5-tts (语境感知, 支持 instruction)",
-        "step-tts-2" to "step-tts-2 (上一代)",
+        "step-tts-mini" to "step-tts-mini (lightweight, low cost)",
+        "step-tts-vivid" to "step-tts-vivid (expressive)",
+        "stepaudio-2.5-tts" to "stepaudio-2.5-tts (context-aware, supports instruction)",
+        "step-tts-2" to "step-tts-2 (previous generation)",
     )
 
     FormItem(
@@ -1120,40 +1120,40 @@ private fun StepTTSConfiguration(
     }
 
     // Voice
-    // 部分常用 voice-id, 完整列表见官方开发指南
+    // Common voice IDs; see the StepFun developer guide for the full list
     // https://platform.stepfun.com/docs/zh/guides/developer/tts
     val voices = listOf(
-        "elegantgentle-female" to "气质温婉 (elegantgentle-female)",
-        "livelybreezy-female" to "活力轻快 (livelybreezy-female)",
-        "energeticconfident-female" to "活力自信 (energeticconfident-female)",
-        "jingdiannvsheng" to "经典女声 (jingdiannvsheng)",
-        "wenroushunv" to "温柔熟女 (wenroushunv)",
-        "tianmeinvsheng" to "甜美女声 (tianmeinvsheng)",
-        "qingchunshaonv" to "清纯少女 (qingchunshaonv)",
-        "wenrounvsheng" to "温柔女声 (wenrounvsheng)",
-        "ruanmengnvsheng" to "软萌女生 (ruanmengnvsheng)",
-        "youyanvsheng" to "优雅女生 (youyanvsheng)",
-        "lengyanyujie" to "冷艳御姐 (lengyanyujie)",
-        "shuangkuaijiejie" to "爽快姐姐 (shuangkuaijiejie)",
-        "wenjingxuejie" to "文静学姐 (wenjingxuejie)",
-        "linjiajiejie" to "邻家姐姐 (linjiajiejie)",
-        "linjiameimei" to "邻家妹妹 (linjiameimei)",
-        "zhixingjiejie" to "知性姐姐 (zhixingjiejie)",
-        "cixingnansheng" to "磁性男声 (cixingnansheng)",
-        "wenrounansheng" to "温柔男声 (wenrounansheng)",
-        "yuanqinansheng" to "元气男声 (yuanqinansheng)",
-        "zhengpaiqingnian" to "正派青年 (zhengpaiqingnian)",
-        "ruyananshi" to "儒雅男士 (ruyananshi)",
-        "boyinnansheng" to "播音男声 (boyinnansheng)",
-        "shenchennanyin" to "深沉男音 (shenchennanyin)",
-        "shuangkuainansheng" to "爽快男声 (shuangkuainansheng)",
-        "ganliannvsheng" to "干练女声 (ganliannvsheng)",
-        "qinhenvsheng" to "亲切女声 (qinhenvsheng)",
-        "huolinvsheng" to "活力女声 (huolinvsheng)",
-        "jilingshaonv" to "机灵少女 (jilingshaonv)",
-        "yuanqishaonv" to "元气少女 (yuanqishaonv)",
-        "wenrougongzi" to "温柔公子 (wenrougongzi)",
-        "qingniandaxuesheng" to "青年大学生 (qingniandaxuesheng)",
+        "elegantgentle-female" to "Elegant, gentle female (elegantgentle-female)",
+        "livelybreezy-female" to "Lively, breezy female (livelybreezy-female)",
+        "energeticconfident-female" to "Energetic, confident female (energeticconfident-female)",
+        "jingdiannvsheng" to "Classic female (jingdiannvsheng)",
+        "wenroushunv" to "Gentle mature female (wenroushunv)",
+        "tianmeinvsheng" to "Sweet female (tianmeinvsheng)",
+        "qingchunshaonv" to "Fresh young female (qingchunshaonv)",
+        "wenrounvsheng" to "Gentle female (wenrounvsheng)",
+        "ruanmengnvsheng" to "Soft, cute female (ruanmengnvsheng)",
+        "youyanvsheng" to "Graceful female (youyanvsheng)",
+        "lengyanyujie" to "Cool, poised female (lengyanyujie)",
+        "shuangkuaijiejie" to "Straightforward female (shuangkuaijiejie)",
+        "wenjingxuejie" to "Quiet student female (wenjingxuejie)",
+        "linjiajiejie" to "Girl-next-door (older) (linjiajiejie)",
+        "linjiameimei" to "Girl-next-door (younger) (linjiameimei)",
+        "zhixingjiejie" to "Intellectual female (zhixingjiejie)",
+        "cixingnansheng" to "Magnetic male (cixingnansheng)",
+        "wenrounansheng" to "Gentle male (wenrounansheng)",
+        "yuanqinansheng" to "Energetic male (yuanqinansheng)",
+        "zhengpaiqingnian" to "Upright young male (zhengpaiqingnian)",
+        "ruyananshi" to "Refined male (ruyananshi)",
+        "boyinnansheng" to "Broadcast male (boyinnansheng)",
+        "shenchennanyin" to "Deep male (shenchennanyin)",
+        "shuangkuainansheng" to "Straightforward male (shuangkuainansheng)",
+        "ganliannvsheng" to "Crisp, capable female (ganliannvsheng)",
+        "qinhenvsheng" to "Warm, friendly female (qinhenvsheng)",
+        "huolinvsheng" to "Vibrant female (huolinvsheng)",
+        "jilingshaonv" to "Clever young female (jilingshaonv)",
+        "yuanqishaonv" to "Energetic young female (yuanqishaonv)",
+        "wenrougongzi" to "Gentle young gentleman (wenrougongzi)",
+        "qingniandaxuesheng" to "Young college student (qingniandaxuesheng)",
     )
 
     FormItem(
@@ -1179,7 +1179,7 @@ private fun StepTTSConfiguration(
 
     FormItem(
         label = { Text("Response Format") },
-        description = { Text("音频编码格式 (注意 StepFun API 字段名为 camelCase)") }
+        description = { Text("Audio encoding format (StepFun API field names are camelCase)") }
     ) {
         SelectTextField(
             value = setting.responseFormat,
@@ -1197,7 +1197,7 @@ private fun StepTTSConfiguration(
     // Speed
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text("语速 (0.5 - 2.0, 1.0 为正常)") }
+        description = { Text("Speed (0.5 - 2.0, 1.0 is normal)") }
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -1214,7 +1214,7 @@ private fun StepTTSConfiguration(
     // Volume
     FormItem(
         label = { Text("Volume") },
-        description = { Text("音量 (0.1 - 2.0, 1.0 为正常)") }
+        description = { Text("Volume (0.1 - 2.0, 1.0 is normal)") }
     ) {
         OutlinedNumberInput(
             value = setting.volume,
@@ -1233,7 +1233,7 @@ private fun StepTTSConfiguration(
 
     FormItem(
         label = { Text("Sample Rate") },
-        description = { Text("采样率 (Hz)") }
+        description = { Text("Sample rate (Hz)") }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -1247,21 +1247,21 @@ private fun StepTTSConfiguration(
         )
     }
 
-    // Instruction (仅 stepaudio-2.5-tts 生效)
+    // Instruction (stepaudio-2.5-tts only)
     FormItem(
         label = { Text("Instruction") },
-        description = { Text("全局语境指令, 仅 stepaudio-2.5-tts 生效 (≤200 字符, 留空不下发)") }
+        description = { Text("Global style instruction, stepaudio-2.5-tts only (max 200 characters; leave blank to omit)") }
     ) {
         OutlinedTextField(
             value = setting.instruction,
             onValueChange = { newInstruction ->
-                // 服务端上限 200 字符, 客户端做一层保护
+                // The server caps this at 200 characters; enforce it on the client too
                 if (newInstruction.length <= 200) {
                     onValueChange(setting.copy(instruction = newInstruction))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("例如: 语气温柔, 语速偏慢") },
+            placeholder = { Text("e.g. gentle tone, slightly slow pace") },
             minLines = 2,
             maxLines = 4,
         )
@@ -1277,7 +1277,7 @@ private fun VolcengineTTSConfiguration(
 
     FormItem(
         label = { Text("API Key") },
-        description = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
+        description = { Text("Use the API key from the Doubao Speech console, not the Volcengine Ark console.") }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1287,7 +1287,7 @@ private fun VolcengineTTSConfiguration(
                 IconButton(onClick = { keyVisible = !keyVisible }) {
                     Icon(
                         imageVector = if (keyVisible) HugeIcons.ViewOff else HugeIcons.View,
-                        contentDescription = if (keyVisible) "隐藏 API Key" else "显示 API Key",
+                        contentDescription = if (keyVisible) "Hide API key" else "Show API key",
                     )
                 }
             },
@@ -1305,8 +1305,8 @@ private fun VolcengineTTSConfiguration(
         )
     }
     FormItem(
-        label = { Text("资源 ID") },
-        description = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
+        label = { Text("Resource ID") },
+        description = { Text("Must match an enabled service and voice. Default: seed-tts-2.0.") }
     ) {
         OutlinedTextField(
             value = setting.resourceId,
@@ -1316,8 +1316,8 @@ private fun VolcengineTTSConfiguration(
         )
     }
     FormItem(
-        label = { Text("音色 ID") },
-        description = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
+        label = { Text("Voice ID") },
+        description = { Text("Voice ID from the console. Defaults to the VV voice.") }
     ) {
         OutlinedTextField(
             value = setting.speaker,
@@ -1328,7 +1328,7 @@ private fun VolcengineTTSConfiguration(
     }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text("范围 -50～100，0 为正常语速，-50 为半速，100 为两倍速。") }
+        description = { Text("Range -50 to 100: 0 is normal speed, -50 is half speed, 100 is double speed.") }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,

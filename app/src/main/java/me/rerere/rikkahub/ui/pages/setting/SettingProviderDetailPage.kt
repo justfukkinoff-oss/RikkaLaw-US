@@ -380,7 +380,7 @@ private fun SettingProviderConfigPage(
             }
         }
 
-        // 硅基流动图标
+        // SiliconFlow icon
         if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
             SiliconFlowPowerByIcon(
                 modifier = Modifier
@@ -500,7 +500,7 @@ private fun ModelList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState
         ) {
-            // 模型列表
+            // Model list
             if (providerSetting.models.isEmpty()) {
                 item {
                     Column(
@@ -654,7 +654,7 @@ private fun ModelSettingsForm(
         ) { page ->
             when (page) {
                 0 -> {
-                    // 基本设置页面
+                    // Basic settings page
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier
@@ -733,7 +733,7 @@ private fun ModelSettingsForm(
                 }
 
                 1 -> {
-                    // 高级设置页面
+                    // Advanced settings page
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -766,7 +766,7 @@ private fun ModelSettingsForm(
                 }
 
                 2 -> {
-                    // 内置工具页面
+                    // Built-in tools page
                     BuiltInToolsSettings(
                         tools = model.tools,
                         onUpdateTools = { tools ->
@@ -776,7 +776,7 @@ private fun ModelSettingsForm(
                 }
 
                 3 -> {
-                    // 价格页面
+                    // Pricing page
                     ModelPricingPage(
                         model = model,
                         onModelChange = onModelChange
@@ -970,7 +970,7 @@ private fun ModelPicker(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // 标题栏和添加所有按钮
+                // Title bar and "add all" button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1054,7 +1054,7 @@ private fun ModelPicker(
                                 IconButton(
                                     onClick = {
                                         if (selectedModels.any { model -> model.modelId == it.modelId }) {
-                                            // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
+                                            // Work out which models to delete from selectedModels; deletion matches on id, not ModelId
                                             onModelDeselected(selectedModels.firstOrNull { model -> model.modelId == it.modelId }
                                                 ?: it)
                                         } else {
@@ -1634,7 +1634,7 @@ private fun ProviderOverrideSettings(
                     editingProvider = parentProvider?.copyProvider(
                         id = Uuid.random(),
                         builtIn = false,
-                        models = emptyList(), // 这里必须设置为空，不然会导致循环依赖JSON
+                        models = emptyList(), // Must be empty here, otherwise the JSON has a circular reference
                         description = {},
                     )
                     showProviderConfig = true

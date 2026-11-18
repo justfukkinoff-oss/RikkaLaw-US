@@ -246,7 +246,7 @@ fun SettingWebPage() {
                                         }
                                     }
                                 },
-                                // 运行中不允许切换 需重启服务生效
+                                // Cannot switch while running; restart the service to apply
                                 enabled = !serverState.isRunning,
                             )
                         },

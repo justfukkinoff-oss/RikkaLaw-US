@@ -333,7 +333,7 @@ fun WorkspaceDetailPage(id: String) {
     state.exportResult?.let { result ->
         AlertDialog(
             onDismissRequest = vm::dismissExportResult,
-            title = { Text("导出结果") },
+            title = { Text("Export result") },
             text = { Text(result, modifier = Modifier.verticalScroll(rememberScrollState())) },
             confirmButton = {
                 TextButton(onClick = vm::dismissExportResult) { Text(stringResource(R.string.common_confirm)) }
@@ -770,18 +770,18 @@ private fun WorkspaceFilesPage(
                             selecting = false
                             selectedPaths = emptySet()
                         },
-                    ) { Text("取消多选") }
+                    ) { Text("Cancel selection") }
                     TextButton(onClick = {
                         selectedPaths = if (selectedFiles.size == files.size) emptySet() else files.map { it.path }.toSet()
-                    }) { Text(if (files.isNotEmpty() && selectedFiles.size == files.size) "取消全选" else "全选") }
+                    }) { Text(if (files.isNotEmpty() && selectedFiles.size == files.size) "Deselect all" else "Select all") }
                     TextButton(
                         onClick = { onBatchExport(selectedFiles) },
                         enabled = selectedFiles.isNotEmpty() && !state.exporting,
-                    ) { Text("导出 (${selectedFiles.size})") }
+                    ) { Text("Export (${selectedFiles.size})") }
                 }
                 if (state.exporting) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text("正在导出 ${state.exportCompleted}/${state.exportTotal}")
+                    Text("Exporting ${state.exportCompleted}/${state.exportTotal}")
                 }
             }
         }
@@ -916,7 +916,7 @@ private fun WorkspaceFileCard(
             .combinedClickable(
                 onClick = onOpen,
                 onLongClick = if (entry.isDirectory) null else onLongClick,
-                onLongClickLabel = if (entry.isDirectory) null else "选择文件",
+                onLongClickLabel = if (entry.isDirectory) null else "Select file",
             ),
         colors = CustomColors.cardColorsOnSurfaceContainer,
     ) {

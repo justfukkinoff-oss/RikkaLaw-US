@@ -533,7 +533,7 @@ private fun StepASRConfiguration(
         description = { Text(stringResource(R.string.setting_asr_configure_step_hotwords_desc)) }
     ) {
         OutlinedTextField(
-            // 用逗号分隔展示, 输入时按逗号 split 回 List
+            // Shown comma-separated; split back into a list on input
             value = setting.hotwords.joinToString(","),
             onValueChange = { text ->
                 val list = text.split(",")
@@ -542,7 +542,7 @@ private fun StepASRConfiguration(
                 onValueChange(setting.copy(hotwords = list))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("热词1, 热词2, 热词3") }
+            placeholder = { Text("term1, term2, term3") }
         )
     }
 }
@@ -554,7 +554,7 @@ private fun DashScopeStreamingASRConfiguration(
 ) {
     FormItem(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
-        description = { Text("阿里云百炼 API Key (sk-...)，需已开通 qwen-audio-3.x-asr-flash-streaming 服务。") }
+        description = { Text("Alibaba Cloud Model Studio API key (sk-...). The qwen-audio-3.x-asr-flash-streaming service must be enabled.") }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -566,7 +566,7 @@ private fun DashScopeStreamingASRConfiguration(
 
     FormItem(
         label = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
-        description = { Text("百炼实时语音识别 WebSocket 端点 (…/api-ws/v1/inference)。") }
+        description = { Text("Model Studio real-time speech recognition WebSocket endpoint (…/api-ws/v1/inference).") }
     ) {
         OutlinedTextField(
             value = setting.websocketUrl,
@@ -617,8 +617,8 @@ private fun DashScopeStreamingASRConfiguration(
     }
 
     FormItem(
-        label = { Text("保留方言") },
-        description = { Text("仅 qwen-audio-3.1-asr-flash-streaming 支持：开启后保留方言表达，否则转写为普通话。") }
+        label = { Text("Keep dialect") },
+        description = { Text("qwen-audio-3.1-asr-flash-streaming only: keep dialect wording instead of normalizing to Mandarin.") }
     ) {
         androidx.compose.material3.Switch(
             checked = setting.keepDialect,
