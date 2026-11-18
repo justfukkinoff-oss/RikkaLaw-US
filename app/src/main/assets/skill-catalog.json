@@ -8,10 +8,10 @@
       "description": "Operating profile for U.S. criminal-law, habeas and wrongful-conviction work: no-legal-advice guardrails, CourtListener citation verification, matter workspaces with cold-memory knowledge bases, docx drafting, long-run sub-agent investigations.",
       "category": "legal",
       "license": "AGPL-3.0",
-      "size_kb": 9,
+      "size_kb": 10,
       "runtime": "any",
       "source_url": "https://github.com/justfukkinoff-oss/RikkaLaw-US/tree/main/skills/legal-assistant",
-      "is_bundled": false
+      "is_bundled": true
     },
     {
       "name": "auto-reply",

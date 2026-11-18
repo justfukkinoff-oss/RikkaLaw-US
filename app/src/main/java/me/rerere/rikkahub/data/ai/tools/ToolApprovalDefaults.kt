@@ -269,6 +269,11 @@ object ToolApprovalDefaults {
         // trust footprint and inherits the same approval gate.
         "web_extract",
 
+        // citation_verify POSTs draft text (potentially privileged matter content) to the
+        // CourtListener lookup API — the egress side of a fixed-URL web_fetch, so it lands
+        // on the same one-tap blacklist starting point. Read-only, so no HARDLINE arm.
+        "citation_verify",
+
         // Phase 25 — Phase 3 second cut. Every mutating tool is approval-gated; the
         // read-only tools (keystore_verify, keystore_list_keys, list_storage_volumes,
         // list_granted_directories, list_zip_contents) are deliberately NOT in this set.
