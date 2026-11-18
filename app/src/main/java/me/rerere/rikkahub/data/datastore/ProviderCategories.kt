@@ -50,7 +50,7 @@ private val BUILT_IN_PROVIDER_CATEGORY: Map<Uuid, ProviderCategory> = buildMap {
     put(Uuid.parse("da93779f-3956-48cc-82ef-67bb482eaaf7"), ProviderCategory.DOMESTIC) // 302.AI
 
     // 国际
-    put(Uuid.parse("a8d2d463-e8c0-41f2-b89e-f5eb8e716cce"), ProviderCategory.INTERNATIONAL) // RikkaHub
+    put(Uuid.parse("a8d2d463-e8c0-41f2-b89e-f5eb8e716cce"), ProviderCategory.INTERNATIONAL) // RikkaLaw-U.S.
     put(Uuid.parse("1eeea727-9ee5-4cae-93e6-6fb01a4d051e"), ProviderCategory.INTERNATIONAL) // OpenAI
     put(DEFAULT_CODEX_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Codex
     put(DEFAULT_GROK_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Grok

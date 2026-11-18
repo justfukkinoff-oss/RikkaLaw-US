@@ -82,7 +82,7 @@ internal suspend fun TelegramBotService.handleBuiltInCommand(
 internal suspend fun TelegramBotService.sendStart(chatId: Long) {
     val (modelName, _) = activeModelDisplay()
     val msg = """
-        👋 Hey - RikkaHub agent here, running $modelName.
+        👋 Hey - RikkaLaw-U.S. agent here, running $modelName.
 
         Just talk to me normally. Or use one of these:
 
@@ -247,7 +247,7 @@ internal suspend fun TelegramBotService.handleStatusCommand(chatId: Long) {
     val whitelistLabel = if (whitelistCount == 1) "1 chat" else "$whitelistCount chats"
 
     val msg = buildString {
-        appendLine("📊 RikkaHub agent status")
+        appendLine("📊 RikkaLaw-U.S. agent status")
         appendLine()
         appendLine("${if (isRunning) "🟢" else "🔴"} Service: ${if (isRunning) "running" else "stopped"}")
         appendLine("👤 Assistant: ${assistant.name.ifBlank { "(default)" }}")
@@ -522,7 +522,7 @@ internal suspend fun TelegramBotService.autoCancelStuckTurn(chatId: Long) {
  * photo to Telegram, false if there was nothing to rescue.
  *
  * Covered tools (and the JSON-output key they each use for the file path):
- *  - `take_screenshot` — writes `gallery_path` (Pictures/RikkaHub/Screenshots) +
+ *  - `take_screenshot` — writes `gallery_path` (Pictures/RikkaLaw-U.S./Screenshots) +
  *    `file_path` (cache).
  *  - `take_photo` — writes `gallery_path` (cache).
  *  - `browser_screenshot` — writes `file_path` (cache/browser-shots).

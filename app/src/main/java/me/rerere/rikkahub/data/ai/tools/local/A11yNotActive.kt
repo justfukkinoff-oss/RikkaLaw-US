@@ -31,15 +31,15 @@ object A11yNotActive {
             )
             put(
                 "recovery",
-                "Re-enable it: Settings → Accessibility → RikkaHub (or use the 'One-tap repair " +
+                "Re-enable it: Settings → Accessibility → RikkaLaw-U.S. (or use the 'One-tap repair " +
                     "(Shizuku)' button on the in-app 设置 → 无障碍 page). If it keeps dropping, " +
-                    "allow-list RikkaHub against the system's power management: autostart + allow " +
+                    "allow-list RikkaLaw-U.S. against the system's power management: autostart + allow " +
                     "background battery use + lock it in the recents list.",
             )
         } else {
             put(
                 "recovery",
-                "Enable RikkaHub in Settings → Accessibility → Installed Apps",
+                "Enable RikkaLaw-U.S. in Settings → Accessibility → Installed Apps",
             )
         }
     }

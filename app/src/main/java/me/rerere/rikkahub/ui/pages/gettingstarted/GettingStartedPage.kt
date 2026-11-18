@@ -74,7 +74,7 @@ fun evaluateGettingStartedSteps(settings: Settings, deniedPermissions: Int): Map
     )
 
 /**
- * First-run guide. The stock RikkaHub opens straight into an empty chat with no model, no
+ * First-run guide. The stock RikkaLaw-U.S. opens straight into an empty chat with no model, no
  * tools and no permissions — so the single most common complaint is "I installed it and
  * don't know what to do". This page turns that dead end into an ordered, tappable checklist
  * that points at the exact setting each capability lives in.

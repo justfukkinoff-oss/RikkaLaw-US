@@ -9,9 +9,9 @@ import java.io.File
  * Reconciles a database file that was just restored from a backup so Room can open it.
  *
  * The fork added several tables (scheduled jobs, workflows, ssh hosts, telegram chats,
- * the agent-run ledger) on top of upstream RikkaHub, and it renumbered its Room schema so
+ * the agent-run ledger) on top of upstream RikkaLaw-U.S., and it renumbered its Room schema so
  * the same version number no longer means the same thing in the two apps. A backup exported
- * from *upstream* RikkaHub therefore breaks a fresh restore in two ways:
+ * from *upstream* RikkaLaw-U.S. therefore breaks a fresh restore in two ways:
  *  - it is missing the fork-only tables, so Room fails its integrity check or hits "no such
  *    table: scheduled_jobs" at first query (issue #8); and
  *  - it is stamped with upstream's user_version (24 for 2.4.x), which is LOWER than the

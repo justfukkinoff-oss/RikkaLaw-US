@@ -255,7 +255,7 @@ class TelegramBotService : Service() {
         val body = if (rejected != null) {
             "Rejected sender ${rejected.senderId} (chat ${rejected.chatId}). Add to whitelist if that was you."
         } else {
-            "Routing inbound messages to RikkaHub"
+            "Routing inbound messages to RikkaLaw-U.S."
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Telegram bot listening")

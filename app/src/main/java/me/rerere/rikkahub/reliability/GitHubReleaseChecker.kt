@@ -22,10 +22,10 @@ private const val TAG = "GHReleaseChecker"
  * Two consumers, one round-trip each:
  *   - [check] → [CheckResult], backing the `check_app_updates` LLM tool.
  *   - [fetchUpdateInfo] → [UpdateInfo], the shape the in-app update card renders and the
- *     same contract upstream RikkaHub serves from its hosted `UPDATE_API_URL`.
+ *     same contract upstream RikkaLaw-U.S. serves from its hosted `UPDATE_API_URL`.
  *
  * Tag schema: every release on this fork ships as `vX.Y.Z-pure.N`, where `vX.Y.Z` is the
- * upstream RikkaHub version this fork is built on and `N` is the Pure revision. The
+ * upstream RikkaLaw-U.S. version this fork is built on and `N` is the Pure revision. The
  * newer-than comparator is lexicographic by (X, Y, Z, N); the flavour label itself is
  * ignored, so the older `-agent.N` spelling still compares correctly.
  */
@@ -150,7 +150,7 @@ class GitHubReleaseChecker(
 
     companion object {
         /** The fork's own repository — releases here are the ones this build can install. */
-        const val DEFAULT_REPO = "wuyhong715/rikkahub-agent-pure"
+        const val DEFAULT_REPO = "justfukkinoff-oss/RikkaLaw-US"
     }
 }
 
