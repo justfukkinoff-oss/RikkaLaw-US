@@ -96,6 +96,7 @@ import me.rerere.rikkahub.data.ai.tools.local.telegramSetDefaultChatTool
 import me.rerere.rikkahub.data.ai.tools.local.telegramSetTokenTool
 import me.rerere.rikkahub.data.ai.tools.local.telegramStatusTool
 import me.rerere.rikkahub.data.ai.tools.local.requestSecretTool
+import me.rerere.rikkahub.data.ai.tools.local.citationVerifyTool
 import me.rerere.rikkahub.data.ai.tools.local.saveSshHostTool
 import me.rerere.rikkahub.data.ai.tools.local.secretDeleteTool
 import me.rerere.rikkahub.data.ai.tools.local.secretListTool
@@ -230,6 +231,9 @@ sealed class LocalToolOption {
 
     // P2-37 model-roster tools (model_list / model_add / model_update / model_delete)
     @Serializable @SerialName("model_control")        data object ModelControl        : LocalToolOption()
+
+    // RikkaLaw: legal lookup group — citation verification against CourtListener.
+    @Serializable @SerialName("legal_research")       data object LegalResearch       : LocalToolOption()
 }
 
 /**
@@ -1120,6 +1124,9 @@ class LocalTools(
                     )?.let { tools.add(it) }
                 }
             }
+        }
+        if (options.contains(LocalToolOption.LegalResearch)) {
+            tools.add(citationVerifyTool(okHttpClient, agentSecretsStore))
         }
         // web_fetch/web_extract are always-on unless disabled in Search settings, no
         // per-assistant toggle. They are in [LocalToolFilter.UNGROUPED_TOOL_NAMES]: a

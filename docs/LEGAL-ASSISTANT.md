@@ -55,11 +55,17 @@ This mirrors the anti-hallucination goal of commercial citation checkers (the
 
 ## Roadmap
 
-1. **Now (this PR):** base import + `skills/legal-assistant` profile + catalog entry.
-2. **Next:** first-run experience — a default "Counsel" assistant preconfigured with the
-   legal system prompt and the three experts (`researcher`, `verifier`, `drafter`).
-3. **Threshold tooling:** a dedicated citation-verification local tool (Kotlin, calling
-   CourtListener) so verification stops depending on workspace scripting.
+1. **Done:** base import + `skills/legal-assistant` profile + catalog entry.
+2. **Done:** the native `citation_verify` local tool (Kotlin, in the new
+   `legal_research` local-tool group) — CourtListener citation-lookup with per-citation
+   verdicts (`verified` / `ambiguous` / `unverified` / `throttled`), the token kept in the
+   on-device vault via `request_secret` (`COURTLISTENER_TOKEN` passed as `token_secret`),
+   so verification no longer depends on workspace `curl` scripting. Seeded alongside it:
+   a default "Counsel" assistant preconfigured with the legal system prompt, memory on,
+   and the `legal_research` tool group enabled (its `legal-assistant` skill activates
+   once installed from the catalog).
+3. **Next:** the three default experts (`researcher`, `verifier`, `drafter`) as seeded
+   agent definitions.
 4. **Knowledge layer:** matter-packaged KB import (bulk markdown/CSV → cold-memory
    corpora), and per-project model assignments when embedding models are added.
 5. **Drafting:** docx template library (§2254 & §2255 skeletons, memo templates, records

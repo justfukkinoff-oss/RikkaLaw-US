@@ -1,7 +1,7 @@
 ---
 name: legal-assistant
 description: Operating profile for a U.S. criminal-law and habeas corpus research assistant working for supervising legal counsel. Covers scope guardrails (no legal advice, U.S. law, English only), the citation-verification protocol against CourtListener, project knowledge bases via cold memory, workspace bootstrap for document tooling (python, pip, beautifulsoup4, python-docx), and long-run investigation recipes using sub-agents. Loads whenever a matter involves post-conviction, habeas, or wrongful-conviction work.
-allowed-tools: workspace_shell workspace_run_background workspace_background_status workspace_read_file workspace_write_file workspace_read_folder search_web scrape_web web_fetch memory_index memory_read memory_write subagent_create subagent_dispatch subagent_get subagent_list tool_search tool_open use_skill
+allowed-tools: workspace_shell workspace_run_background workspace_background_status workspace_read_file workspace_write_file workspace_read_folder search_web scrape_web web_fetch citation_verify memory_index memory_read memory_write subagent_create subagent_dispatch subagent_get subagent_list tool_search tool_open use_skill
 compatibility: Requires network access for CourtListener and web research; the Linux workspace for the bootstrap and docx export; cold memory and sub-agents for long-horizon investigations.
 metadata:
   scope: US criminal law, habeas corpus, wrongful convictions only
@@ -39,8 +39,13 @@ helps). Treat every citation — yours, counsel's, or a source document's — as
 until confirmed.
 
 1. **Parse** the draft and list each distinct authority (case law, statute, rule).
-2. **Verify case law** against CourtListener's citation-lookup API using the workspace:
-   `workspace_shell` with:
+2. **Verify case law** with the native `citation_verify` tool (CourtListener's
+   citation-lookup API, Eyecite-backed). It parses every citation in a block of text and
+   returns per-citation verdicts: `verified` (with case name and CourtListener URL),
+   `ambiguous` (multiple candidate clusters — stop and ask counsel which one applies),
+   `unverified`, or `throttled` (retry after `wait_until`). If the tool is unavailable (an
+   older build or a sub-agent surface without the legal_research group), fall back to the
+   workspace: `workspace_shell` with:
 
    ```bash
    curl -s -X POST 'https://www.courtlistener.com/api/rest/v4/citation-lookup/' \
@@ -48,11 +53,13 @@ until confirmed.
         -d "text=$(cat draft.txt)"
    ```
 
-   Ask counsel to store the key with the workflow secret store, never in chat. The response
-   reports per-citation status; treat `200`/found clusters as verified and note the
-   CourtListener link for counsel's click-through.
-   (The lookup API covers case law only — it does not validate statutes or `id./supra`
-   cites; flag those for manual confirmation.)
+   The token lives in the on-device secret vault, never in chat: store it once with
+   `request_secret` (vault name `COURTLISTENER_TOKEN`, kind password — sign counsel up at
+   https://www.courtlistener.com/profile/signups/) and pass it to `citation_verify` as
+   `token_secret=COURTLISTENER_TOKEN`.
+   The lookup API covers case law only — it does not validate statutes, law journals, or
+   `id./supra` cites; flag those for manual confirmation. A lookup failure is never a
+   verification success: unverified or absent results stay unverified.
 3. **Verify quotes** by fetching the opinion (CourtListener search endpoint
    `/api/rest/v4/search/?q=...`, or `scrape_web`) and locating the pinned paragraph.
    Quotation text must match the source character-for-character before a draft repeats it.

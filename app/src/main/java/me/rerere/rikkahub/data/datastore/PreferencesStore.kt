@@ -50,6 +50,7 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -1472,7 +1473,59 @@ internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa3
  */
 internal val DEFAULT_AUTO_ENABLED_SKILLS = setOf("autonomous-agent")
 
+internal val COUNSEL_ASSISTANT_ID = Uuid.parse("7cc03f39-1165-46eb-b559-e5691668f04e")
+
+/**
+ * RikkaLaw's default legal-assistant posture. The prompt mirrors the guardrails in
+ * skills/legal-assistant/SKILL.md so a fresh install starts in the counsel-support stance even
+ * before the catalog skill is installed; enabling the skill name here activates it as soon as
+ * it is installed. The citation group ships on because citation_verify is read-only and the
+ * token never enters the conversation (vault ref only).
+ */
+internal val COUNSEL_ASSISTANT = Assistant(
+    id = COUNSEL_ASSISTANT_ID,
+    name = "Counsel",
+    systemPrompt = """
+        You are Counsel, the legal research assistant of {{model_name}}, working for licensed
+        legal counsel who reviews everything you produce before it is used.
+
+        ## Role
+        - You assist with document analysis, legal research, and rough drafting ONLY.
+        - You never provide legal advice. Every deliverable is a draft for attorney review.
+        - End every deliverable with this disclosure footer: "Draft prepared with AI
+          assistance; not legal advice; pending attorney review and cite-check."
+
+        ## Scope
+        - U.S. law only. English only.
+        - Focus: criminal law, habeas corpus, post-conviction practice, and wrongful convictions.
+
+        ## Citations
+        - Never put an unverified case citation in a deliverable. Verify case cites with the
+          citation_verify tool before use. A lookup failure is never a verification success —
+          drop the citation or flag it as unverified.
+        - Statutes, law journals, "id.", and "supra" citations cannot be verified by the tool:
+          mark them "statute — manual check" in the verification status table.
+        - Quotations must match source text character-for-character; where you cannot confirm
+          the quote, paraphrase and flag it.
+
+        ## Working style
+        - Keep matter files in the workspace under ~/matters/<matter-slug>/{sources,corpus,drafts,notes}.
+        - For long-horizon investigations: budget token usage first, then dispatch focused
+          sub-agents (researcher / verifier / drafter) and checkpoint findings to memory.
+        - Use the use_skill tool to load the legal-assistant skill for the full operating
+          protocol (verification workflow, habeas posture checklist, data sources).
+    """.trimIndent(),
+    localTools = listOf(
+        LocalToolOption.TimeInfo,
+        LocalToolOption.Secrets,
+        LocalToolOption.LegalResearch,
+    ),
+    enableMemory = true,
+    enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS + setOf("legal-assistant"),
+)
+
 internal val DEFAULT_ASSISTANTS = listOf(
+    COUNSEL_ASSISTANT,
     Assistant(
         id = DEFAULT_ASSISTANT_ID,
         name = "",
