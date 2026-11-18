@@ -57,6 +57,9 @@ object KnowledgeImportRules {
     /** Upper bound on documents one call converts — re-run for larger corpora. */
     const val MAX_FILES_PER_IMPORT = 50
 
+    /** Upper bound on slug characters kept from a source stem inside a kb-<slug>.md name. */
+    const val MAX_TARGET_STEM_CHARS = 80
+
     /**
      * Upper bound on characters copied from one source file. The reader caps at 512 KB, and a
      * knowledge document should stay reachable in a few `memory_read` windows, not all of them.
