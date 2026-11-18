@@ -68,63 +68,66 @@ as one or more PRs that must pass the `debug-apk` CI build before merge.
 - [ ] Translate remaining hard-coded Chinese UI strings and comments to English.
 
 ### Phase 2 — Legal RAG engine (on-device)
-- [ ] `legal/` package: Room entities `LegalProject`, `LegalDocument`, `LegalChunk`,
+- [x] `legal/` package (raw SQLite via the app DB helper rather than Room): entities `LegalProject`, `LegalDocument`, `LegalChunk`,
       `LegalCitation`; FTS5 virtual table `legal_chunk_fts` (porter unicode61 for keyword,
       plus trigram table for exact / partial-phrase matching).
-- [ ] Legal-aware chunker: respects pages, paragraphs, numbered ¶s, headings
+- [x] Legal-aware chunker: respects pages, paragraphs, numbered ¶s, headings
       (`I.`, `A.`, `1.`), footnotes; never splits a citation or a quoted passage.
-- [ ] Citation extractor (eyecite-style, Kotlin): U.S., S. Ct., L. Ed. 2d, F./F.2d–F.4th,
+- [x] Citation extractor (eyecite-style, Kotlin): U.S., S. Ct., L. Ed. 2d, F./F.2d–F.4th,
       F. Supp. 1–3d, F. App'x, B.R., state reporters, regional reporters, `U.S.C. §`,
       `C.F.R.`, Fed. R. Crim. P./Evid./App. P., AEDPA sections, short forms and *Id.*
-- [ ] Embedding client (OpenAI-compatible `/embeddings`, Gemini `embedContent`),
+- [x] Embedding client (OpenAI-compatible `/embeddings`, Gemini `embedContent`),
       batched, resumable, stored as float32 BLOBs per chunk.
-- [ ] Rerank client (Cohere/Jina/NVIDIA-style `/rerank`), optional.
-- [ ] Hybrid retriever: BM25 + vector + citation hits fused with Reciprocal Rank Fusion,
+- [x] Rerank client (Cohere/Jina/NVIDIA-style `/rerank`), optional.
+- [x] Hybrid retriever: BM25 + vector + citation hits fused with Reciprocal Rank Fusion,
       then optional rerank; every hit returns document, page, and character span.
-- [ ] Tools: `legal_search` (modes: hybrid / exact / keyword / semantic / citation),
+- [x] Tools: `legal_search` (modes: hybrid / exact / keyword / semantic / citation),
       `quote_check` (verify a quotation appears verbatim in project sources, with
       fuzzy-diff when it does not).
 
 ### Phase 3 — Projects & uploads
-- [ ] Projects screen: create matter, upload documents (multi-select SAF), per-project
+- [x] Projects screen: create matter, upload documents (multi-select SAF), per-project
       "auto-embed uploads" toggle, indexing progress, re-index, delete.
-- [ ] Files area gets direct upload with the same auto-embed option.
+- [x] Files area gets direct upload with the same auto-embed option.
 - [ ] Conversations can be attached to a project; retrieval is scoped to it by default.
-- [ ] OCR pass for scanned PDFs using the OCR model slot (vision model), page-by-page.
+- [x] OCR pass for scanned PDFs using the OCR model slot (vision model), page-by-page.
 
 ### Phase 4 — Model slots & BYOK
-- [ ] Add `embedding`, `rerank`, and `ocr` slots alongside chat / fast / sub-agent.
-- [ ] Model fetch already exists; add embedding / rerank model detection.
-- [ ] NVIDIA NIM rerank + embedding presets.
+- [x] Add `embedding`, `rerank`, and `ocr` slots alongside chat / fast / sub-agent.
+- [x] Model fetch already exists; add embedding / rerank model detection.
+- [x] NVIDIA NIM rerank + embedding presets.
 
 ### Phase 5 — Hardwired legal system layer
-- [ ] Non-editable base prompt injected ahead of any user prompt for the main assistant and
+- [x] Non-editable base prompt injected ahead of any user prompt for the main assistant and
       every sub-agent: role (assistant to licensed counsel), no legal advice, U.S. law only,
       English only, criminal / habeas / wrongful-conviction focus, verification duties,
       output disclosure footer.
-- [ ] Role prompts for Researcher / Verifier / Drafter sub-agents, also non-editable; the
+- [x] Role prompts for Researcher / Verifier / Drafter sub-agents, also non-editable; the
       user may only append.
 
 ### Phase 6 — Legal lookup & verification (Cetient / Pico-style)
 - [x] `citation_verify` (CourtListener citation-lookup).
-- [ ] `case_search` / `case_get` (CourtListener search + opinion text), `docket_get` (RECAP).
-- [ ] `statute_lookup` (uscode.house.gov, eCFR, GovInfo), Federal Rules.
+- [x] `case_law_search` / `case_law_opinion` (CourtListener search + opinion text).
+- [ ] `docket_get` (RECAP).
+- [x] `us_code_section` (GovInfo, most recent edition).
+- [ ] eCFR and Federal Rules lookups.
 - [ ] Verification report: every authority in a draft → verified / ambiguous / not found,
       quotation match against opinion text, flag overruled/abrogated where data allows.
 
 ### Phase 7 — Drafting & docx
 - [x] python-docx templates inside the workspace (legal-drafting skill).
-- [ ] Native Kotlin `docx_create` tool (pure OOXML writer, no POI) so drafting works with no
+- [x] Native Kotlin `docx_create` tool (pure OOXML writer, no POI) so drafting works with no
       workspace installed: pleading caption, headings, numbered paragraphs, footnotes,
       table of authorities, cite-check sheet.
 
 ### Phase 8 — Workspace bootstrap
-- [ ] One-tap PRoot bootstrap profiles: `core` (python3, pip, curl, wget, git, jq),
+- [x] One-tap PRoot bootstrap profiles: `core` (python3, pip, curl, wget, git, jq),
       `research` (requests, beautifulsoup4, lxml, pdfplumber, pypdf), `drafting`
       (python-docx, docxtpl), `ocr` (tesseract-ocr, ocrmypdf), `citations` (eyecite).
-- [ ] Termux bridge stays as the alternative when Termux is already installed.
+- [x] Termux bridge stays as the alternative when Termux is already installed.
 
 ### Phase 9 — MCP OAuth hardening
 - [x] OAuth 2.1 coordinator, metadata discovery, loopback callback, token refresh exist.
-- [ ] Audit end-to-end against a real OAuth MCP server, add DCR fallback to manual client
-      id, surface token expiry and re-auth in the MCP settings page.
+- [x] DCR fallback to manual client id / secret / scopes, POST probe for resource metadata,
+      token expiry, re-authorize and sign-out in the MCP settings page.
+- [ ] Audit end-to-end against a real OAuth MCP server.
