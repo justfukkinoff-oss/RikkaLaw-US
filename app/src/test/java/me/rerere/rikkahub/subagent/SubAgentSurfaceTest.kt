@@ -329,7 +329,7 @@ class SubAgentSurfaceTest {
         val conversation = Uuid.random()
         val child = SubAgentSurface.resolveChildAssistant(
             parent(),
-            definition(localTools = listOf(LocalToolOption.TimeInfo, LocalToolOption.Battery)),
+            definition(localTools = listOf(LocalToolOption.TimeInfo, LocalToolOption.StorageInfo)),
         )
         SubAgentSurface.freeze(conversation, assistant = child)
         val tools = listOf(tool("get_battery_status"), tool("eval_javascript"), tool("record_audio"), tool("ask_user"))

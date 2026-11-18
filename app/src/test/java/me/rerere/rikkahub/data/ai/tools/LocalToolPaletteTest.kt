@@ -75,7 +75,7 @@ class LocalToolPaletteTest {
                 LocalToolOption.JavascriptEngine to listOf(
                     "javascript", "web_fetch", "web_extract", "check_app_updates",
                 ),
-                LocalToolOption.Battery to listOf("battery", "web_fetch", "web_extract"),
+                LocalToolOption.StorageInfo to listOf("battery", "web_fetch", "web_extract"),
             )
         )
         assertEquals(listOf("javascript", "battery"), palette.hits.map { it.name })
@@ -83,7 +83,7 @@ class LocalToolPaletteTest {
         assertNull(palette.group("web_extract"))
         assertNull(palette.group("check_app_updates"))
         assertEquals(
-            listOf(LocalToolOption.JavascriptEngine, LocalToolOption.Battery),
+            listOf(LocalToolOption.JavascriptEngine, LocalToolOption.StorageInfo),
             palette.groups,
         )
     }

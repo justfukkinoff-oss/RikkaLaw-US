@@ -166,68 +166,38 @@ sealed class LocalToolOption {
     @SerialName("secrets")
     data object Secrets : LocalToolOption()
 
-    @Serializable @SerialName("battery")        data object Battery        : LocalToolOption()
 
     @Serializable @SerialName("usage_ledger") data object UsageLedger : LocalToolOption()
-    @Serializable @SerialName("audio_info")     data object AudioInfo      : LocalToolOption()
-    @Serializable @SerialName("telephony_info") data object TelephonyInfo  : LocalToolOption()
-    @Serializable @SerialName("wifi_info")      data object WifiInfo       : LocalToolOption()
-    @Serializable @SerialName("sensors")        data object Sensors        : LocalToolOption()
     @Serializable @SerialName("storage_info")   data object StorageInfo    : LocalToolOption()
     @Serializable @SerialName("toast")          data object Toast          : LocalToolOption()
     @Serializable @SerialName("notification")   data object Notification   : LocalToolOption()
     @Serializable @SerialName("share")          data object Share          : LocalToolOption()
-    @Serializable @SerialName("torch")          data object Torch          : LocalToolOption()
-    @Serializable @SerialName("vibrate")        data object Vibrate        : LocalToolOption()
-    @Serializable @SerialName("brightness")     data object Brightness     : LocalToolOption()
-    @Serializable @SerialName("volume")         data object Volume         : LocalToolOption()
-    @Serializable @SerialName("media_player")   data object MediaPlayer    : LocalToolOption()
     @Serializable @SerialName("media_scanner")  data object MediaScanner   : LocalToolOption()
     @Serializable @SerialName("download")       data object Download       : LocalToolOption()
 
-    @Serializable @SerialName("location")        data object Location       : LocalToolOption()
-    @Serializable @SerialName("contacts")        data object Contacts       : LocalToolOption()
-    @Serializable @SerialName("call_log")        data object CallLog        : LocalToolOption()
-    @Serializable @SerialName("sms_inbox")       data object SmsInbox       : LocalToolOption()
-    @Serializable @SerialName("camera_photo")    data object CameraPhoto    : LocalToolOption()
     @Serializable @SerialName("mic_recorder")    data object MicRecorder    : LocalToolOption()
     @Serializable @SerialName("speech_to_text")  data object SpeechToText   : LocalToolOption()
-    @Serializable @SerialName("fingerprint")     data object Fingerprint    : LocalToolOption()
     @Serializable @SerialName("cron_jobs")       data object CronJobs       : LocalToolOption()
     @Serializable @SerialName("ssh")             data object Ssh            : LocalToolOption()
-    @Serializable @SerialName("shizuku")         data object Shizuku        : LocalToolOption()
-    @Serializable @SerialName("telegram_bot")    data object TelegramBot    : LocalToolOption()
-    @Serializable @SerialName("screen_automation") data object ScreenAutomation : LocalToolOption()
-    @Serializable @SerialName("app_launcher")      data object AppLauncher       : LocalToolOption()
     @Serializable @SerialName("termux")            data object Termux            : LocalToolOption()
-    @Serializable @SerialName("notification_listener") data object NotificationListener : LocalToolOption()
     @Serializable @SerialName("files")               data object Files              : LocalToolOption()
     @Serializable @SerialName("mcp_control")         data object McpControl         : LocalToolOption()
-    @Serializable @SerialName("external_automation") data object ExternalAutomation : LocalToolOption()
     @Serializable @SerialName("reliability")         data object Reliability        : LocalToolOption()
     @Serializable @SerialName("sub_agents")          data object SubAgents          : LocalToolOption()
     @Serializable @SerialName("cost_guards")         data object CostGuards         : LocalToolOption()
     @Serializable @SerialName("workflows")           data object Workflows          : LocalToolOption()
     @Serializable @SerialName("skill_import")        data object SkillImport        : LocalToolOption()
     @Serializable @SerialName("js_skills")           data object JsSkills           : LocalToolOption()
-    @Serializable @SerialName("system_intents")      data object SystemIntents      : LocalToolOption()
     @Serializable @SerialName("browser")             data object Browser            : LocalToolOption()
 
     // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
-    @Serializable @SerialName("sms_send")             data object SmsSend             : LocalToolOption()
-    @Serializable @SerialName("wallpaper")            data object Wallpaper           : LocalToolOption()
     @Serializable @SerialName("keystore")             data object Keystore            : LocalToolOption()
-    @Serializable @SerialName("nfc")                  data object Nfc                 : LocalToolOption()
     @Serializable @SerialName("external_storage")     data object ExternalStorage     : LocalToolOption()
     @Serializable @SerialName("archive")              data object Archive             : LocalToolOption()
-    @Serializable @SerialName("keyboard_control")     data object KeyboardControl     : LocalToolOption()
 
     // P2-33 image generation tools
-    @Serializable @SerialName("image_generation")     data object ImageGeneration     : LocalToolOption()
-    @Serializable @SerialName("video_generation")     data object VideoGeneration     : LocalToolOption()
 
     // Virtual display: run apps off-screen without stealing foreground.
-    @Serializable @SerialName("virtual_display")      data object VirtualDisplay      : LocalToolOption()
 
     // P2-37 model-roster tools (model_list / model_add / model_update / model_delete)
     @Serializable @SerialName("model_control")        data object ModelControl        : LocalToolOption()
@@ -790,27 +760,11 @@ class LocalTools(
             tools.add(secretListTool(agentSecretsStore))
             tools.add(secretDeleteTool(agentSecretsStore))
         }
-        if (options.contains(LocalToolOption.Battery)) {
-            tools.add(batteryTool(context))
-        }
 
         if (options.contains(LocalToolOption.UsageLedger)) {
             tools.add(me.rerere.rikkahub.data.usage.usageExportTool(usageRecordDao))
             tools.add(me.rerere.rikkahub.data.usage.usageGetPricesTool(settingsStore))
             tools.add(me.rerere.rikkahub.data.usage.usageSetPricesTool(settingsStore, agentRunRepository))
-        }
-        if (options.contains(LocalToolOption.AudioInfo)) {
-            tools.add(audioInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.TelephonyInfo)) {
-            tools.add(telephonyInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.WifiInfo)) {
-            tools.add(wifiInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.Sensors)) {
-            tools.add(listSensorsTool(context))
-            tools.add(readSensorTool(context))
         }
         if (options.contains(LocalToolOption.StorageInfo)) {
             tools.add(storageTool(context))
@@ -824,28 +778,6 @@ class LocalTools(
         if (options.contains(LocalToolOption.Share)) {
             tools.add(shareTool(context, invocationContext, interactiveToolStreamer))
         }
-        if (options.contains(LocalToolOption.Torch)) {
-            tools.add(torchTool(context))
-        }
-        if (options.contains(LocalToolOption.Vibrate)) {
-            tools.add(vibrateTool(context))
-        }
-        if (options.contains(LocalToolOption.Brightness)) {
-            tools.add(getBrightnessTool(context))
-            tools.add(setBrightnessTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (options.contains(LocalToolOption.Volume)) {
-            tools.add(getVolumeTool(context))
-            tools.add(setVolumeTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (options.contains(LocalToolOption.MediaPlayer)) {
-            tools.add(playMediaTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(stopMediaTool(context))
-            tools.add(pauseMediaTool(context))
-            tools.add(resumeMediaTool(context))
-            tools.add(seekMediaTool(context))
-            tools.add(getMediaStatusTool())
-        }
         if (options.contains(LocalToolOption.MediaScanner)) {
             tools.add(mediaScannerTool(context))
         }
@@ -853,31 +785,11 @@ class LocalTools(
             tools.add(downloadTool(context))
             tools.add(writeTextFileTool(context))
         }
-        if (options.contains(LocalToolOption.Location)) {
-            tools.add(locationTool(context))
-        }
-        if (options.contains(LocalToolOption.Contacts)) {
-            tools.add(searchContactsTool(context))
-            tools.add(listContactsTool(context))
-        }
-        if (options.contains(LocalToolOption.CallLog)) {
-            tools.add(callLogTool(context))
-        }
-        if (options.contains(LocalToolOption.SmsInbox)) {
-            tools.add(listSmsInboxTool(context))
-            tools.add(searchSmsTool(context))
-        }
-        if (options.contains(LocalToolOption.CameraPhoto)) {
-            tools.add(cameraPhotoTool(context, cameraResultBuffer))
-        }
         if (options.contains(LocalToolOption.MicRecorder)) {
             tools.add(micRecorderTool(context))
         }
         if (options.contains(LocalToolOption.SpeechToText)) {
             tools.add(speechToTextTool(context))
-        }
-        if (options.contains(LocalToolOption.Fingerprint)) {
-            tools.add(fingerprintTool(context, biometricResultBuffer))
         }
         if (options.contains(LocalToolOption.Ssh)) {
             tools.add(sshExecTool(context, agentSecretsStore))
@@ -889,35 +801,6 @@ class LocalTools(
             tools.add(sshDownloadTool(context, sshHostRepository))
             tools.add(forgetSshHostKeyTool(context))
         }
-        if (options.contains(LocalToolOption.Shizuku)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
-        }
-        if (options.contains(LocalToolOption.VirtualDisplay)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayCreateTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayDestroyTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayListTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayLaunchTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayTapTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplaySwipeTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayKeyTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.virtualDisplayTextTool(context))
-        }
-        if (options.contains(LocalToolOption.TelegramBot)) {
-            tools.add(telegramSetTokenTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramStatusTool(context, telegramBotPreferences, telegramBotClient))
-            tools.add(telegramEnableTool(context, telegramBotPreferences))
-            tools.add(telegramDisableTool(context, telegramBotPreferences))
-            tools.add(telegramAddWhitelistTool(telegramBotPreferences))
-            tools.add(telegramRemoveWhitelistTool(telegramBotPreferences))
-            tools.add(telegramSetDefaultChatTool(telegramBotPreferences))
-            tools.add(telegramSetAssistantTool(telegramBotPreferences))
-            tools.add(telegramSendMessageTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSendPhotoTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSendDocumentTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSetCommandsTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramGetCommandsTool(telegramBotClient))
-            tools.add(telegramDeleteCommandsTool(telegramBotPreferences, telegramBotClient))
-        }
         if (options.contains(LocalToolOption.CronJobs)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(scheduledJobRepository, cronJobScheduler, settingsStore,
                 knownToolNamesProvider = { tools.map { it.name } }))
@@ -927,26 +810,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.resumeJobTool(scheduledJobRepository, cronJobScheduler))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.triggerJobNowTool(scheduledJobRepository, cronJobScheduler))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.getJobHistoryTool(scheduledJobRepository, scheduledJobRunRepository))
-        }
-        if (options.contains(LocalToolOption.ScreenAutomation)) {
-            tools.add(tapTool(invocationContext, interactiveToolStreamer))
-            tools.add(longPressTool(invocationContext, interactiveToolStreamer))
-            tools.add(swipeTool(invocationContext, interactiveToolStreamer))
-            tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
-            tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
-            tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
-            tools.add(scrollTool(invocationContext, interactiveToolStreamer))
-            tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
-            tools.add(takeScreenshotTool(context))  // take_screenshot IS the screenshot; skip auto-stream
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
-        }
-        if (options.contains(LocalToolOption.AppLauncher)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listInstalledAppsTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listAppActivitiesTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
         }
         if (options.contains(LocalToolOption.Termux)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
@@ -964,14 +827,6 @@ class LocalTools(
             // whisper_status is a free read-only pre-flight check — no approval needed.
             // The LLM calls this BEFORE attempting transcription to know what's set up.
             tools.add(whisperStatusTool(context, settingsStore))
-        }
-        if (options.contains(LocalToolOption.NotificationListener)) {
-            tools.add(listRecentNotificationsTool())
-            tools.add(listActiveNotificationsTool())
-            tools.add(dismissNotificationTool())
-            tools.add(notificationActionClickTool())
-            tools.add(notificationReplyTool())
-            tools.add(notificationStatusTool(notificationListenerPreferences, telegramBotPreferences))
         }
         if (options.contains(LocalToolOption.Files)) {
             tools.add(listFilesTool())
@@ -1001,12 +856,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpTestTool(settingsStore, mcpManager))
             tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListToolsTool(settingsStore, mcpManager))
             tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetToolApprovalTool(settingsStore))
-        }
-        if (options.contains(LocalToolOption.ExternalAutomation)) {
-            tools.add(me.rerere.rikkahub.automation.externalAutomationStatusTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationSetEnabledTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationAddTrustedPackageTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationRemoveTrustedPackageTool(externalAutomationConfig))
         }
         // Built-in update check: always on, never a user toggle and never listed in the
         // per-tool overrides (see [HIDDEN_TOOL_NAMES]) — it backs the app's own update
@@ -1079,14 +928,6 @@ class LocalTools(
                 context, skillManager, jsSkillRunner, skillSecretsStore,
             ))
         }
-        if (options.contains(LocalToolOption.SystemIntents)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.createContactTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.sendEmailIntentTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.sendSmsIntentTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.openWifiSettingsTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.showLocationOnMapTool(context, invocationContext, interactiveToolStreamer))
-        }
         if (options.contains(LocalToolOption.Workflows)) {
             // workflow_create persists the authoringAssistantId from [context] so the
             // engine can resolve the right tool surface at fire time (not "any assistant
@@ -1136,12 +977,6 @@ class LocalTools(
             tools.add(webExtractTool(okHttpClient))
         }
         // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
-        if (options.contains(LocalToolOption.SmsSend)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.smsSendTool(context))
-        }
-        if (options.contains(LocalToolOption.Wallpaper)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.setWallpaperTool(context))
-        }
         if (options.contains(LocalToolOption.Keystore)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreGenerateKeyTool())
             tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreSignTool())
@@ -1150,10 +985,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDecryptTool())
             tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDeleteKeyTool())
             tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreListKeysTool())
-        }
-        if (options.contains(LocalToolOption.Nfc)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcReadTagTool(context, nfcResultBuffer, invocationContext))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcWriteTagTool(context, nfcResultBuffer, invocationContext))
         }
         if (options.contains(LocalToolOption.ExternalStorage)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.listStorageVolumesTool(context))
@@ -1166,52 +997,6 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.zipFilesTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.unzipFileTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.listZipContentsTool(context))
-        }
-        if (options.contains(LocalToolOption.KeyboardControl)) {
-            // Drives the active text field through the co-signed agent-keyboard IME.
-            // Write tools are approval-gated via ToolApprovalDefaults; the two read tools
-            // (keyboard_read_field, keyboard_editor_info) are not.
-            tools.add(keyboardTypeTool(keyboardApiClient))
-            tools.add(keyboardReadFieldTool(keyboardApiClient))
-            tools.add(keyboardPressKeyTool(keyboardApiClient))
-            tools.add(keyboardDeleteTool(keyboardApiClient))
-            tools.add(keyboardClearTool(keyboardApiClient))
-            tools.add(keyboardEditorInfoTool(keyboardApiClient))
-            tools.add(keyboardSetCursorTool(keyboardApiClient))
-            tools.add(keyboardSelectRangeTool(keyboardApiClient))
-        }
-        if (options.contains(LocalToolOption.ImageGeneration)) {
-            // P2-33 image generation tools
-            tools.add(
-                generateImageTool(
-                    settingsStore = settingsStore,
-                    providerManager = providerManager,
-                    filesManager = filesManager,
-                    genMediaRepository = genMediaRepository,
-                    modelCanSeeImages = invocationContext.modelCanSeeImages,
-                )
-            )
-            tools.add(
-                editImageTool(
-                    settingsStore = settingsStore,
-                    providerManager = providerManager,
-                    filesManager = filesManager,
-                    genMediaRepository = genMediaRepository,
-                    modelCanSeeImages = invocationContext.modelCanSeeImages,
-                )
-            )
-        }
-        if (options.contains(LocalToolOption.VideoGeneration)) {
-            // P2-33b video generation tool
-            tools.add(
-                generateVideoTool(
-                    settingsStore = settingsStore,
-                    providerManager = providerManager,
-                    filesManager = filesManager,
-                    genMediaRepository = genMediaRepository,
-                    modelCanSeeVideos = invocationContext.modelCanSeeVideos,
-                )
-            )
         }
         if (options.contains(LocalToolOption.ModelControl)) {
             // P2-37 — the model roster. The read side is free (settings → text); the three

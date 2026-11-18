@@ -212,7 +212,7 @@ private fun AssistantLocalToolContent(
         } else CardGroup {
             visibleGroups.forEach { option ->
                 val enabled = option in enabledGroups
-                val available = option != LocalToolOption.Nfc || hasNfc
+                val available = true
                 val tools = groupTools[option].orEmpty()
                 val offCount = tools.count { it in disabledTools }
                 // A search opens what it found; otherwise the user's own taps decide.

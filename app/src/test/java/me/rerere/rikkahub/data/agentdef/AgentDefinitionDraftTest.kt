@@ -86,7 +86,7 @@ class AgentDefinitionDraftTest {
 
     @Test
     fun `inheriting is reachable only through the explicit reset`() {
-        val draft = AgentDefinitionDraft.of(definition(localTools = listOf(LocalToolOption.Battery)))
+        val draft = AgentDefinitionDraft.of(definition(localTools = listOf(LocalToolOption.StorageInfo)))
 
         val reset = draft.inheritLocalTools()
         assertFalse(reset.ownsLocalTools)
@@ -98,11 +98,11 @@ class AgentDefinitionDraftTest {
         val draft = AgentDefinitionDraft.of(definition())
             .ownLocalTools()
             .toggleLocalTool(LocalToolOption.Workflows, true)
-            .toggleLocalTool(LocalToolOption.Battery, true)
+            .toggleLocalTool(LocalToolOption.StorageInfo, true)
 
         // Catalogue order, not tap order.
         assertEquals(
-            listOf(LocalToolOption.Battery, LocalToolOption.Workflows),
+            listOf(LocalToolOption.StorageInfo, LocalToolOption.Workflows),
             draft.localTools,
         )
     }
@@ -111,8 +111,8 @@ class AgentDefinitionDraftTest {
     fun `toggling the last tool off leaves an owned empty list, never a null`() {
         val draft = AgentDefinitionDraft.of(definition())
             .ownLocalTools()
-            .toggleLocalTool(LocalToolOption.Battery, true)
-            .toggleLocalTool(LocalToolOption.Battery, false)
+            .toggleLocalTool(LocalToolOption.StorageInfo, true)
+            .toggleLocalTool(LocalToolOption.StorageInfo, false)
 
         assertTrue(draft.ownsLocalTools)
         assertEquals(emptyList<LocalToolOption>(), draft.localTools)
@@ -121,10 +121,10 @@ class AgentDefinitionDraftTest {
     @Test
     fun `toggling while still inheriting materialises first instead of dropping the toggle`() {
         val draft = AgentDefinitionDraft.of(definition())
-            .toggleLocalTool(LocalToolOption.Battery, true)
+            .toggleLocalTool(LocalToolOption.StorageInfo, true)
 
         assertTrue(draft.ownsLocalTools)
-        assertEquals(listOf(LocalToolOption.Battery), draft.localTools)
+        assertEquals(listOf(LocalToolOption.StorageInfo), draft.localTools)
     }
 
     @Test
@@ -265,7 +265,7 @@ class AgentDefinitionDraftTest {
             id = "def-9",
             name = "Researcher",
             slug = "researcher",
-            localTools = listOf(LocalToolOption.Battery, LocalToolOption.Workflows),
+            localTools = listOf(LocalToolOption.StorageInfo, LocalToolOption.Workflows),
             disabledLocalTools = setOf("read_sensor"),
             mcpServers = setOf("mcp-a"),
             skills = setOf("skill-a"),
@@ -290,7 +290,7 @@ class AgentDefinitionDraftTest {
     fun `the summary counts each owned group and the namespace`() {
         val summary = definition(
             slug = "Researcher",
-            localTools = listOf(LocalToolOption.Battery, LocalToolOption.Workflows),
+            localTools = listOf(LocalToolOption.StorageInfo, LocalToolOption.Workflows),
             mcpServers = setOf("mcp-a"),
         ).surfaceSummary()
 
@@ -317,7 +317,7 @@ class AgentDefinitionDraftTest {
     fun `the draft summary agrees with the stored summary`() {
         val row = definition(
             slug = "researcher",
-            localTools = listOf(LocalToolOption.Battery),
+            localTools = listOf(LocalToolOption.StorageInfo),
             skills = setOf("a", "b"),
         )
         assertEquals(row.surfaceSummary(), AgentDefinitionDraft.of(row).surfaceSummary())
@@ -359,9 +359,9 @@ class AgentDefinitionDraftTest {
 
     @Test
     fun `the catalogue order is used when the stored list is sorted`() {
-        val shuffled = listOf(LocalToolOption.Workflows, LocalToolOption.Battery, LocalToolOption.Workflows)
+        val shuffled = listOf(LocalToolOption.Workflows, LocalToolOption.StorageInfo, LocalToolOption.Workflows)
         assertEquals(
-            listOf(LocalToolOption.Battery, LocalToolOption.Workflows),
+            listOf(LocalToolOption.StorageInfo, LocalToolOption.Workflows),
             LocalToolGroups.order(shuffled),
         )
     }

@@ -49,7 +49,7 @@ class AgentDefinitionSurfaceFieldsTest {
                 add("time_info")
             },
         ).getOrThrow()
-        assertEquals(listOf(LocalToolOption.TimeInfo, LocalToolOption.ScreenAutomation), parsed)
+        assertEquals(listOf(LocalToolOption.TimeInfo, LocalToolOption.Files), parsed)
     }
 
     @Test
