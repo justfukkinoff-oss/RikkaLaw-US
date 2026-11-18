@@ -1592,7 +1592,8 @@ class GenerationLoop(
             // addendum) so prompt caching survives memory injection: the stable part is the
             // cached prefix, the volatile part sits after it. See SystemPromptBuilder.
             val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
-                assistantPrompt = effectiveSystemPrompt,
+                // RikkaLaw: the fixed legal charter always leads the stable prefix.
+                assistantPrompt = me.rerere.rikkahub.legal.LegalCharter.compose(effectiveSystemPrompt),
                 memoryPrompt = memoryPrompt,
                 recentChatsPrompt = recentChatsPrompt,
                 toolPrompts = toolPrompts,

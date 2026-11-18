@@ -653,6 +653,15 @@ fun ChatDrawerContent(
                         DrawerAction(
                             modifier = if (drawerCapsules) Modifier.weight(1f) else Modifier,
                             capsule = drawerCapsules,
+                            icon = { Icon(HugeIcons.Folder01, null) },
+                            label = { Text("Projects") },
+                            contentDescription = "Projects",
+                            onClick = { navController.navigate(Screen.Projects) },
+                        )
+
+                        DrawerAction(
+                            modifier = if (drawerCapsules) Modifier.weight(1f) else Modifier,
+                            capsule = drawerCapsules,
                             icon = { Icon(HugeIcons.InLove, null) },
                             label = { Text(stringResource(R.string.favorite_page_title)) },
                             contentDescription = stringResource(R.string.favorite_page_title),

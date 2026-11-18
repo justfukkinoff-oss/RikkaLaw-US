@@ -573,7 +573,11 @@ class SubAgentEngine(
         // then dropped on the floor.
         val systemPromptAddendum = composeSubAgentSystemPrompt(
             assistantPrompt = parentAssistant?.subAgentSystemPrompt.orEmpty(),
-            expertPrompt = definition?.systemPrompt,
+            // RikkaLaw: default experts carry a fixed role core ahead of their editable prompt.
+            expertPrompt = listOfNotNull(
+                me.rerere.rikkahub.legal.LegalCharter.roleCore(definition?.id),
+                definition?.systemPrompt?.takeIf { it.isNotBlank() },
+            ).joinToString("\n\n").ifBlank { null },
             requestPrompt = request.systemPrompt,
         )
         // T-04 / (4) - the caller asked for part of its own conversation to travel with the

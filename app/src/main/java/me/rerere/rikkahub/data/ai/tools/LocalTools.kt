@@ -983,7 +983,12 @@ class LocalTools(
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalQuoteCheckTool(legalIndex, legalRetriever))
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalDocumentReadTool(legalIndex))
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalAuthoritiesTool(legalIndex))
-            }.onFailure { android.util.Log.w("LocalTools", "legal record tools unavailable", it) }
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.docxCreateTool(context, legalIndex, legalIngestor))
+            }.onFailure {
+                android.util.Log.w("LocalTools", "legal record tools unavailable", it)
+                // Drafting still works without the index; it just can't attach to a project.
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.docxCreateTool(context, null, null))
+            }
         }
         // web_fetch/web_extract are always-on unless disabled in Search settings, no
         // per-assistant toggle. They are in [LocalToolFilter.UNGROUPED_TOOL_NAMES]: a

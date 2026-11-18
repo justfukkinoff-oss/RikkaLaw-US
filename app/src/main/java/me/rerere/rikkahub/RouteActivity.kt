@@ -411,6 +411,14 @@ class RouteActivity : ComponentActivity() {
                                 FavoritePage()
                             }
 
+                            entry<Screen.Projects> {
+                                me.rerere.rikkahub.ui.pages.projects.ProjectsPage()
+                            }
+
+                            entry<Screen.ProjectDetail> { key ->
+                                me.rerere.rikkahub.ui.pages.projects.ProjectDetailPage(key.id)
+                            }
+
                             entry<Screen.Assistant> {
                                 AssistantPage()
                             }
@@ -744,6 +752,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Favorite : Screen
+
+    @Serializable
+    data object Projects : Screen
+
+    @Serializable
+    data class ProjectDetail(val id: String) : Screen
 
     @Serializable
     data object Assistant : Screen
