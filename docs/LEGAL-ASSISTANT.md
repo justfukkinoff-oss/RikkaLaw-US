@@ -67,8 +67,14 @@ This mirrors the anti-hallucination goal of commercial citation checkers (the
 3. **Done:** the three default experts — `Researcher` / `Verifier` / `Drafter` agent
    definitions seeded into the expert library at boot (fixed ids, idempotent; a deliberate
    delete is recorded and never resurrected). `subagent_dispatch` names them directly.
-4. **Knowledge layer:** matter-packaged KB import (bulk markdown/CSV → cold-memory
-   corpora), and per-project model assignments when embedding models are added.
+4. **Done (first half):** the matter knowledge layer — the `corpus_import` local tool
+   (registered with the cold-memory tools, so it only exists when a workspace + knowledge
+   directory are configured): bulk-imports a matter's `corpus/` directory (`.md` / `.txt`
+   / `.csv`, default source `corpus`) into normalized `kb-<name>.md` cold-memory documents
+   with a provenance header, batch caps, and no clobbering of existing documents unless
+   `overwrite` is requested. Matter layout convention is now
+   `/workspace/matters/<matter-slug>/{sources,corpus,drafts,notes}` in the workspace file
+   area. Remaining: per-project model assignments when embedding models are added.
 5. **Drafting:** docx template library (§2254 & §2255 skeletons, memo templates, records
    requests) with cite-check status preserved as a review sheet inside each `.docx`.
 

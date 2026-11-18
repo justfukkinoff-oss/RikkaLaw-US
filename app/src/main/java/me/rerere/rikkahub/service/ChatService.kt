@@ -100,9 +100,11 @@ import me.rerere.rikkahub.data.ai.tools.CompactionToolResult
 import me.rerere.rikkahub.data.ai.tools.buildCompactionTools
 import me.rerere.rikkahub.data.ai.tools.createWorkspaceTools
 import me.rerere.rikkahub.data.ai.tools.buildColdMemoryTools
+import me.rerere.rikkahub.data.ai.tools.buildKnowledgeImportTools
 import me.rerere.rikkahub.data.ai.tools.ColdMemoryDoc
 import me.rerere.rikkahub.data.ai.tools.ColdMemoryRules
 import me.rerere.rikkahub.data.ai.tools.ColdMemoryWriteResult
+import me.rerere.rikkahub.data.ai.tools.KbSourceFile
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.files.SkillManager
@@ -2357,27 +2359,31 @@ class ChatService(
             null
         }
 
-        return buildColdMemoryTools(
-            dirLabel = if (dir.isEmpty()) {
-                ColdMemoryRules.WORKSPACE_PREFIX
-            } else {
-                "${ColdMemoryRules.WORKSPACE_PREFIX}/$dir"
-            },
-            listDocs = {
-                try {
-                    workspaceRepository.listFiles(workspaceId, WorkspaceStorageArea.FILES, dir)
-                        .filter { !it.isDirectory }
-                        .map { ColdMemoryDoc(it.name, it.sizeBytes) }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // The directory may not exist yet (cold memory is usable the moment a path
-                    // is picked; the first write creates it). Report an empty knowledge base
-                    // rather than failing the whole memory_index call.
-                    Log.d(TAG, "coldMemory: cannot list '$dir': ${e.message}")
-                    emptyList()
-                }
-            },
+        val dirLabel = if (dir.isEmpty()) {
+            ColdMemoryRules.WORKSPACE_PREFIX
+        } else {
+            "${ColdMemoryRules.WORKSPACE_PREFIX}/$dir"
+        }
+
+        val listMemoryDocs: suspend () -> List<ColdMemoryDoc> = {
+            try {
+                workspaceRepository.listFiles(workspaceId, WorkspaceStorageArea.FILES, dir)
+                    .filter { !it.isDirectory }
+                    .map { ColdMemoryDoc(it.name, it.sizeBytes) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The directory may not exist yet (cold memory is usable the moment a path
+                // is picked; the first write creates it). Report an empty knowledge base
+                // rather than failing the whole memory_index call.
+                Log.d(TAG, "coldMemory: cannot list '$dir': ${e.message}")
+                emptyList()
+            }
+        }
+
+        val coldMemory = buildColdMemoryTools(
+            dirLabel = dirLabel,
+            listDocs = listMemoryDocs,
             readDoc = { name -> readFile(childPath(name)) },
             writeDoc = { name, content, append ->
                 val path = childPath(name)
@@ -2394,6 +2400,39 @@ class ChatService(
                 )
             },
         )
+
+        val corpusImport = buildKnowledgeImportTools(
+            dirLabel = dirLabel,
+            listSourceFiles = { source ->
+                workspaceRepository.listFiles(workspaceId, WorkspaceStorageArea.FILES, source)
+                    .filter { !it.isDirectory }
+                    .map { KbSourceFile(path = it.path, name = it.name, sizeBytes = it.sizeBytes) }
+            },
+            readSource = { path ->
+                try {
+                    workspaceRepository.readText(workspaceId, path)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.d(TAG, "corpus_import: cannot read '$path': ${e.message}")
+                    null
+                }
+            },
+            listKb = { listMemoryDocs().map { it.name } },
+            writeKbDoc = { name, content ->
+                try {
+                    workspaceRepository.writeText(workspaceId, childPath(name), content, overwrite = true)
+                    true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.d(TAG, "corpus_import: cannot write '$name': ${e.message}")
+                    false
+                }
+            },
+        )
+
+        return coldMemory + corpusImport
     }
 
     /**

@@ -1509,7 +1509,11 @@ internal val COUNSEL_ASSISTANT = Assistant(
           the quote, paraphrase and flag it.
 
         ## Working style
-        - Keep matter files in the workspace under ~/matters/<matter-slug>/{sources,corpus,drafts,notes}.
+        - Keep matter files in the workspace file area under
+          /workspace/matters/<matter-slug>/{sources,corpus,drafts,notes}.
+        - When cold memory is configured, load a matter's corpus once with corpus_import and
+          consult it only through memory_index / memory_read — never paste raw corpus files
+          into the conversation.
         - For long-horizon investigations: budget token usage first, then dispatch focused
           sub-agents (researcher / verifier / drafter) and checkpoint findings to memory.
         - Use the use_skill tool to load the legal-assistant skill for the full operating
