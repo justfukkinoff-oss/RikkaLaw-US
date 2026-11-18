@@ -64,8 +64,9 @@ This mirrors the anti-hallucination goal of commercial citation checkers (the
    a default "Counsel" assistant preconfigured with the legal system prompt, memory on,
    and the `legal_research` tool group enabled (its `legal-assistant` skill activates
    once installed from the catalog).
-3. **Next:** the three default experts (`researcher`, `verifier`, `drafter`) as seeded
-   agent definitions.
+3. **Done:** the three default experts — `Researcher` / `Verifier` / `Drafter` agent
+   definitions seeded into the expert library at boot (fixed ids, idempotent; a deliberate
+   delete is recorded and never resurrected). `subagent_dispatch` names them directly.
 4. **Knowledge layer:** matter-packaged KB import (bulk markdown/CSV → cold-memory
    corpora), and per-project model assignments when embedding models are added.
 5. **Drafting:** docx template library (§2254 & §2255 skeletons, memo templates, records
