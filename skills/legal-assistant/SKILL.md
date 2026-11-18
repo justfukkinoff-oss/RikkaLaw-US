@@ -114,10 +114,13 @@ decades of dockets, procedural-default analysis). Configure it as a capped run:
 
 1. **Budget first.** Set the orchestration budget before dispatching; a petition-cleanup
    run that silently burns tokens is worse than one that stops.
-2. **Sub-agents by role.** `subagent_create` specialists once, reuse by name:
-   - `researcher` — web tools + CourtListener only; returns findings with links.
-   - `verifier` — runs the citation protocol on any draft text; returns the status table.
-   - `drafter` — workspace + python-docx; only converts verified outlines into drafts.
+2. **Sub-agents by role.** Three named experts ship with the app (check the roster with
+   `subagent_list kind=experts`); dispatch by name, and only `subagent_create` replacements
+   if they were deleted or the task needs a different specialist:
+   - `Researcher` — gathers authorities and records; returns findings notes with citations,
+     URLs, and holdings; does not verify.
+   - `Verifier` — runs the citation protocol on any draft text; returns the status table.
+   - `Drafter` — workspace + python-docx; only converts verified outlines into drafts.
    `subagent_dispatch` in parallel where the steps are independent.
 3. **On-demand tools.** With the tool palette on, each sub-agent should `tool_search` /
    `tool_open` only what its role needs.

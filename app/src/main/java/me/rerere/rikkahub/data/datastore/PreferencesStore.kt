@@ -1519,8 +1519,10 @@ internal val COUNSEL_ASSISTANT = Assistant(
         LocalToolOption.TimeInfo,
         LocalToolOption.Secrets,
         LocalToolOption.LegalResearch,
+        LocalToolOption.SubAgents,
     ),
     enableMemory = true,
+    enableWebSearch = true,
     enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS + setOf("legal-assistant"),
 )
 

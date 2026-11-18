@@ -32,6 +32,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 class AgentDefinitionRepository(
     private val dao: AgentDefinitionDao,
     appScope: AppScope,
+    private val defaultExpertRecord: DefaultExpertRecord,
     private val nowMs: () -> Long = { System.currentTimeMillis() },
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) {
@@ -48,12 +49,25 @@ class AgentDefinitionRepository(
             // database error and must not be silently absorbed.
             try {
                 refresh()
+                seedDefaultExperts()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // Deliberately silent and non-fatal; see above.
             }
         }
+    }
+
+    /** RikkaLaw — seed researcher / verifier / drafter once; skips deliberately deleted ones. */
+    private suspend fun seedDefaultExperts() {
+        val toAdd = expertsToSeed(
+            existingIds = dao.listAll(AgentDefinitionDefaults.QUERY_LIMIT).map { it.id }.toSet(),
+            deletedIds = defaultExpertRecord.deletedIds(),
+        )
+        if (toAdd.isEmpty()) return
+        val at = nowMs()
+        toAdd.forEach { dao.upsert(it.copy(createdAtMs = at, updatedAtMs = at)) }
+        refresh()
     }
 
     /** Re-reads every definition and replaces the cache. */
@@ -146,13 +160,21 @@ class AgentDefinitionRepository(
         // thing for a model to say.
         val byId = dao.deleteById(id)
         if (byId > 0) {
+            recordDefaultExpertDelete(id)
             refresh()
             return true
         }
         val byName = dao.byName(id).firstOrNull() ?: return false
         val removed = dao.deleteById(byName.id) > 0
-        if (removed) refresh()
+        if (removed) {
+            recordDefaultExpertDelete(byName.id)
+            refresh()
+        }
         return removed
+    }
+
+    private fun recordDefaultExpertDelete(actualId: String) {
+        if (actualId in DEFAULT_EXPERT_IDS) defaultExpertRecord.recordDeleted(actualId)
     }
 
     suspend fun count(): Int = dao.count()

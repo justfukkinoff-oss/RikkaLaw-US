@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicReference
 import me.rerere.rikkahub.data.agentdef.AgentDefinitionDatabase
 import me.rerere.rikkahub.data.agentdef.AgentDefinitionDatabaseFactory
 import me.rerere.rikkahub.data.agentdef.AgentDefinitionRepository
+import me.rerere.rikkahub.data.agentdef.DefaultExpertRecord
 import me.rerere.rikkahub.data.usage.UsageLedger
 import me.rerere.rikkahub.data.usage.UsageLedgerDatabase
 import me.rerere.rikkahub.data.usage.UsageLedgerDatabaseFactory
@@ -85,7 +86,8 @@ val dataSourceModule = module {
     // file. Nothing in the expert path joins against the chat database.
     single { AgentDefinitionDatabaseFactory.create(context = get()) }
     single { get<AgentDefinitionDatabase>().agentDefinitionDao() }
-    single { AgentDefinitionRepository(dao = get(), appScope = get()) }
+    single { DefaultExpertRecord(context = get()) }
+    single { AgentDefinitionRepository(dao = get(), appScope = get(), defaultExpertRecord = get()) }
 
     single {
         AssistantTemplateLoader(settingsStore = get())
