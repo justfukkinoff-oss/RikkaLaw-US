@@ -1,7 +1,7 @@
 ---
 name: legal-assistant
 description: Operating profile for a U.S. criminal-law and habeas corpus research assistant working for supervising legal counsel. Covers scope guardrails (no legal advice, U.S. law, English only), the citation-verification protocol against CourtListener, project knowledge bases via cold memory, workspace bootstrap for document tooling (python, pip, beautifulsoup4, python-docx), and long-run investigation recipes using sub-agents. Loads whenever a matter involves post-conviction, habeas, or wrongful-conviction work.
-allowed-tools: workspace_shell workspace_run_background workspace_background_status workspace_read_file workspace_write_file workspace_read_folder search_web scrape_web web_fetch citation_verify memory_index memory_read memory_write subagent_create subagent_dispatch subagent_get subagent_list tool_search tool_open use_skill
+allowed-tools: workspace_shell workspace_run_background workspace_background_status workspace_read_file workspace_write_file workspace_read_folder search_web scrape_web web_fetch citation_verify corpus_import memory_index memory_read memory_write subagent_create subagent_dispatch subagent_get subagent_list tool_search tool_open use_skill
 compatibility: Requires network access for CourtListener and web research; the Linux workspace for the bootstrap and docx export; cold memory and sub-agents for long-horizon investigations.
 metadata:
   scope: US criminal law, habeas corpus, wrongful convictions only
@@ -75,12 +75,18 @@ Every matter becomes a workspace folder plus a cold-memory index — that keeps 
 grounded and out of pinned context:
 
 1. Lay out the matter: `workspace_create_folder` (or via shell) under
-   `~/matters/<matter-slug>/` with `sources/`, `corpus/`, `drafts/`, `notes/`.
-2. Counsel's uploads (transcripts, police reports, prior filings) go into `sources/`.
-3. Point cold memory at `~/matters/<matter-slug>/corpus/` and write distilled research
-   notes there with `memory_write`; the agent reads on demand via `memory_index` /
-   `memory_read`, so the knowledge base costs nothing until consulted.
-4. When answering, cite file paths and cold-memory note names exactly as stored so counsel
+   `/workspace/matters/<matter-slug>/` with `sources/`, `corpus/`, `drafts/`, `notes/`.
+2. Counsel's uploads (transcripts, police reports, prior filings) go into `sources/`;
+   anything the agent should search on demand (distilled research notes, CSV exports,
+   summaries) goes into `corpus/`.
+3. Load the corpus into cold memory with one call:
+   `corpus_import(source: "matters/<matter-slug>/corpus")` (or no argument after pointing
+   cold memory at a `corpus/` directory). It copies every .md/.txt/.csv file into
+   normalized `kb-<name>.md` knowledge documents without touching the originals.
+   `memory_index` lists them; `memory_read` consults them on demand, so the knowledge
+   base costs nothing until used. Re-run after bulk uploads.
+4. Write distilled research notes alongside them with `memory_write`.
+5. When answering, cite file paths and cold-memory note names exactly as stored so counsel
    can audit every grounding claim.
 
 ## Workspace bootstrap (run once per matter or per device)
@@ -105,7 +111,8 @@ Uses:
   FOIA and records-request letters) from templates in `drafts/templates/`; always name the
   output `...-DRAFT.docx`.
 - `beautifulsoup4` + `requests`/`curl` — parse scraped court pages and research sources.
-- Keep corpus-building scripts under `~/matters/<matter-slug>/corpus/`.
+- Keep corpus-building scripts under `/workspace/matters/<matter-slug>/corpus/scripts/`;
+  anything the import should pick up stays directly in `corpus/` as `.md` / `.txt` / `.csv`.
 
 ## Long-horizon investigations
 
