@@ -70,6 +70,14 @@ class LegalIngestor(
     fun createProject(name: String, description: String = "", jurisdiction: String = "", autoEmbed: Boolean = true): LegalProject =
         index.createProject(Uuid.random().toString(), name.trim(), description.trim(), jurisdiction.trim(), autoEmbed)
 
+    /** The shared "Library" project that holds files uploaded from the Files area. */
+    fun libraryProject(): LegalProject =
+        index.getProject(LIBRARY_PROJECT_ID) ?: index.createProject(
+            LIBRARY_PROJECT_ID, "Library",
+            "General reference uploads from the Files area (statutes, treatises, forms, prior briefs).",
+            "", true,
+        )
+
     fun deleteProject(projectId: String) {
         index.deleteProject(projectId)
         File(context.filesDir, "legal/projects/$projectId").deleteRecursively()
@@ -152,6 +160,12 @@ class LegalIngestor(
         val doc = index.getDocument(docId)!!
         report("doc:$docId", IngestProgress(docId, title, IngestProgress.Stage.DONE, chunks.size, chunks.size))
         if (project.autoEmbed && chunks.isNotEmpty()) scheduleEmbedding(docId)
+        // Scanned pages: hand off to OCR when an OCR model is configured (resolved lazily to
+        // avoid a constructor cycle LegalOcr -> LegalIngestor).
+        if (emptyPages > 0) runCatching {
+            val ocr = org.koin.java.KoinJavaComponent.getKoin().get<LegalOcr>()
+            if (ocr.isConfigured()) ocr.schedule(docId)
+        }
         return IngestResult(doc, duplicate = false, citations = citations.size, chunks = chunks.size)
     }
 
@@ -162,6 +176,7 @@ class LegalIngestor(
         return when {
             ext == "pdf" || mime == "application/pdf" ->
                 PdfParser.parsePages(file, onPage = onPage).map { (n, t) -> LegalChunker.Page(n, t) }
+            ext in LegalOcr.IMAGE_EXTS || mime.startsWith("image/") -> listOf(LegalChunker.Page(1, ""))
             ext == "docx" -> listOf(LegalChunker.Page(1, DocxParser.parse(file)))
             ext == "pptx" -> listOf(LegalChunker.Page(1, PptxParser.parse(file)))
             ext == "epub" -> listOf(LegalChunker.Page(1, EpubParser.parse(file)))
@@ -187,6 +202,10 @@ class LegalIngestor(
         "epub" -> "application/epub+zip"
         "html", "htm" -> "text/html"
         "md" -> "text/markdown"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "webp" -> "image/webp"
+        "tif", "tiff" -> "image/tiff"
         else -> "text/plain"
     }
 
@@ -277,3 +296,5 @@ class LegalIngestor(
         }
     }
 }
+
+const val LIBRARY_PROJECT_ID = "library"

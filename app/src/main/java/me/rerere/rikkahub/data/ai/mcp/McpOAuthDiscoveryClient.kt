@@ -11,6 +11,8 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -64,7 +66,7 @@ internal class McpOAuthDiscoveryClient(
                     return@withContext metadata
                 }
             }
-            error("无法发现受保护资源元数据 (protected resource metadata)")
+            error("No OAuth protected resource metadata found for $serverUrl")
         }
 
     /** 依次尝试 RFC 8414 与 OIDC Discovery 的 well-known 路径。 */
@@ -77,22 +79,35 @@ internal class McpOAuthDiscoveryClient(
                     return@withContext metadata
                 }
             }
-            error("无法发现授权服务器元数据 (authorization server metadata): $issuer")
+            error("No OAuth authorization server metadata found for $issuer")
         }
 
     private suspend fun probeResourceMetadataUrl(serverUrl: String): String? {
-        val request = Request.Builder()
+        // Many Streamable-HTTP servers only challenge a JSON-RPC POST, so try GET then POST.
+        val get = Request.Builder()
             .url(serverUrl)
             .header("Accept", "application/json, text/event-stream")
             .get()
             .build()
-        return runCatching {
-            executeRaw(request).use { response ->
-                if (response.code != 401) return null
-                val header = response.header("WWW-Authenticate") ?: return null
-                RESOURCE_METADATA_REGEX.find(header)?.groupValues?.getOrNull(1)
-            }
-        }.getOrNull()
+        val post = Request.Builder()
+            .url(serverUrl)
+            .header("Accept", "application/json, text/event-stream")
+            .post(
+                INITIALIZE_PROBE.toRequestBody("application/json".toMediaType())
+            )
+            .build()
+        for (request in listOf(get, post)) {
+            val found = runCatching {
+                executeRaw(request).use { response ->
+                    if (response.code != 401 && response.code != 403) return@use null
+                    response.headers("WWW-Authenticate").firstNotNullOfOrNull { header ->
+                        RESOURCE_METADATA_REGEX.find(header)?.groupValues?.getOrNull(1)
+                    }
+                }
+            }.getOrNull()
+            if (found != null) return found
+        }
+        return null
     }
 
     private fun wellKnownProtectedResourceUrls(serverUrl: String): List<String> {
@@ -163,7 +178,10 @@ internal class McpOAuthDiscoveryClient(
         }
 
     companion object {
-        private val RESOURCE_METADATA_REGEX = Regex("resource_metadata=\"([^\"]+)\"")
+        private val RESOURCE_METADATA_REGEX = Regex("resource_metadata=\"?([^\",\\s]+)\"?")
+        private const val INITIALIZE_PROBE =
+            "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"," +
+                "\"capabilities\":{},\"clientInfo\":{\"name\":\"RikkaLaw\",\"version\":\"1\"}}}"
 
         /** 服务器 origin，用于未提供受保护资源元数据时作为授权服务器 issuer。 */
         fun serverOrigin(serverUrl: String): String? {

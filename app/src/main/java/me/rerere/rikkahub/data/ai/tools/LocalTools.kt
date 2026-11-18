@@ -968,6 +968,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.LegalResearch)) {
             tools.add(citationVerifyTool(okHttpClient, agentSecretsStore))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.caseLawSearchTool(okHttpClient, agentSecretsStore))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.caseLawOpinionTool(okHttpClient, agentSecretsStore))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.usCodeSectionTool(okHttpClient))
             // On-device case-record index (Projects): hybrid search, quote verification,
             // page reads and table of authorities. Resolved lazily so tests that build
             // LocalTools without the legal graph keep working.
@@ -983,6 +986,7 @@ class LocalTools(
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalQuoteCheckTool(legalIndex, legalRetriever))
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalDocumentReadTool(legalIndex))
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.legalAuthoritiesTool(legalIndex))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalDocumentOcrTool(legalIndex, koin.get()))
                 tools.add(me.rerere.rikkahub.data.ai.tools.local.docxCreateTool(context, legalIndex, legalIngestor))
             }.onFailure {
                 android.util.Log.w("LocalTools", "legal record tools unavailable", it)

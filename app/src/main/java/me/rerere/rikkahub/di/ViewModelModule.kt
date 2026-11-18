@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.di
 
+import me.rerere.rikkahub.ui.pages.projects.ProjectsVM
 import me.rerere.rikkahub.ui.pages.assistant.AssistantVM
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -96,7 +97,7 @@ val viewModelModule = module {
         )
     }
     viewModelOf(::FavoriteVM)
-    viewModelOf(::me.rerere.rikkahub.ui.pages.projects.ProjectsVM)
+    viewModelOf(::ProjectsVM)
     viewModelOf(::SearchVM)
     viewModelOf(::StatsVM)
     viewModelOf(::WorkflowsViewModel)

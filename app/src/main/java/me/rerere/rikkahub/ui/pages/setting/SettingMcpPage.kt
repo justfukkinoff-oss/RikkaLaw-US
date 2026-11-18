@@ -404,7 +404,7 @@ private fun McpServerItem(
                     if (status == McpStatus.NeedsAuthorization) {
                         val context = LocalContext.current
                         Text(
-                            text = "需要 OAuth 授权",
+                            text = "OAuth sign-in required",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -412,19 +412,49 @@ private fun McpServerItem(
                             onClick = { mcpManager.startAuthorization(item, context) },
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                         ) {
-                            Text("OAuth 授权")
+                            Text("Sign in with OAuth")
+                        }
+                    }
+                    val oauthState = item.commonOptions.oauth
+                    if (oauthState?.isAuthorized == true && status != McpStatus.Authorizing) {
+                        val context = LocalContext.current
+                        val oauthScope = rememberCoroutineScope()
+                        val expiry = oauthState.expiresAt
+                        val now = System.currentTimeMillis()
+                        Text(
+                            text = when {
+                                expiry <= 0L -> "OAuth: signed in"
+                                expiry > now -> "OAuth: signed in · token renews automatically (expires " +
+                                    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                                        .format(java.util.Date(expiry)) + ")"
+                                oauthState.refreshToken.isNullOrBlank() -> "OAuth: token expired — sign in again"
+                                else -> "OAuth: token expired · will refresh on next use"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (expiry in 1..now && oauthState.refreshToken.isNullOrBlank())
+                                MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { mcpManager.startAuthorization(item, context) },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            ) { Text("Re-authorize") }
+                            TextButton(
+                                onClick = { oauthScope.launch { mcpManager.clearAuthorization(item) } },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            ) { Text("Sign out") }
                         }
                     }
                     if (status == McpStatus.Authorizing) {
                         Text(
-                            text = "正在授权，请在浏览器中完成…",
+                            text = "Authorizing — finish signing in in the browser…",
                             style = MaterialTheme.typography.labelSmall,
                         )
                         TextButton(
                             onClick = { mcpManager.cancelAuthorization(item) },
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                         ) {
-                            Text("取消授权")
+                            Text("Cancel")
                         }
                     }
                 }
@@ -848,6 +878,71 @@ private fun McpCommonOptionsConfigure(
                     Text(stringResource(R.string.setting_mcp_page_add_header))
                 }
             }
+        }
+
+        HorizontalDivider()
+
+        McpOAuthOptions(config = config, update = update)
+    }
+}
+
+/**
+ * OAuth client settings. Leave empty for automatic discovery + dynamic client registration;
+ * fill Client ID (and secret) for providers that require a pre-registered app. Header auth
+ * (e.g. "Authorization: Bearer …" above) takes precedence and disables the OAuth flow.
+ */
+@Composable
+private fun McpOAuthOptions(
+    config: McpServerConfig,
+    update: (McpServerConfig) -> Unit,
+) {
+    val oauth = config.commonOptions.oauth
+    fun write(transform: (me.rerere.rikkahub.data.ai.mcp.McpOAuthState) -> me.rerere.rikkahub.data.ai.mcp.McpOAuthState) {
+        val next = transform(oauth ?: me.rerere.rikkahub.data.ai.mcp.McpOAuthState())
+        val options = config.commonOptions.copy(oauth = next)
+        update(
+            when (config) {
+                is McpServerConfig.SseTransportServer -> config.copy(commonOptions = options)
+                is McpServerConfig.StreamableHTTPServer -> config.copy(commonOptions = options)
+            }
+        )
+    }
+    FormItem(
+        label = { Text("OAuth") },
+        description = {
+            Text(
+                "Optional. Leave blank to auto-discover and register. For providers that need a pre-registered app, " +
+                    "use redirect URI ${me.rerere.rikkahub.data.ai.mcp.MCP_OAUTH_REDIRECT_URI_PUBLIC} and enter its Client ID. " +
+                    "A custom Authorization header above overrides OAuth."
+            )
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = oauth?.clientId.orEmpty(),
+                onValueChange = { v ->
+                    // A new client id invalidates tokens issued to the previous client.
+                    write { it.copy(clientId = v.trim().ifBlank { null }, redirectUri = null, accessToken = null, refreshToken = null, expiresAt = 0L) }
+                },
+                label = { Text("Client ID") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = oauth?.clientSecret.orEmpty(),
+                onValueChange = { v -> write { it.copy(clientSecret = v.trim().ifBlank { null }) } },
+                label = { Text("Client secret (if required)") },
+                singleLine = true,
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = oauth?.scope.orEmpty(),
+                onValueChange = { v -> write { it.copy(scope = v.ifBlank { null }) } },
+                label = { Text("Scopes (space-separated, optional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

@@ -29,7 +29,24 @@ class ProjectsVM(
     private val ingestor: LegalIngestor,
     private val retriever: LegalRetriever,
     private val settingsStore: SettingsStore,
+    private val ocr: me.rerere.rikkahub.legal.rag.LegalOcr,
 ) : ViewModel() {
+
+    /** docId -> (done, total) pages while OCR runs. */
+    val ocrProgress: StateFlow<Map<Long, Pair<Int, Int>>> = ocr.progress
+
+    fun runOcr(projectId: String, docId: Long) {
+        if (!ocr.isConfigured()) {
+            _messages.value = "Select an OCR (vision) model in Settings → Models first"
+            return
+        }
+        viewModelScope.launch {
+            runCatching { ocr.ocrDocument(docId) }
+                .onSuccess { _messages.value = "OCR added text to $it page(s)" }
+                .onFailure { _messages.value = "OCR failed: ${it.message}" }
+            refresh(projectId)
+        }
+    }
 
     private val _projects = MutableStateFlow<List<LegalProject>>(emptyList())
     val projects: StateFlow<List<LegalProject>> = _projects.asStateFlow()

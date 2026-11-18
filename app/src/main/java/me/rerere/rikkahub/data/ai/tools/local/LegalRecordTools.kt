@@ -56,6 +56,28 @@ fun legalProjectListTool(index: LegalIndex): Tool = Tool(
         "document id, title, page count, detected type (transcript, opinion, habeas_petition, police_report …), " +
         "index status (needs_ocr = scanned pages without text) and embedding status. Call this first to learn " +
         "what record is available before searching.",
+    // Gives the model a live inventory of the case files so it scopes searches to the right
+    // project without an extra round-trip. Kept short: names, ids and counts only.
+    systemPrompt = { _, _ ->
+        runCatching {
+            val projects = index.listProjects()
+            if (projects.isEmpty()) {
+                "Case record: no Projects exist yet. If the user refers to case documents, ask them to upload " +
+                    "the record in Projects (drawer → Projects) or use legal_project_create + legal_document_ingest."
+            } else buildString {
+                appendLine("Case record available on this device (pass the project name or id as `project` to scope legal_* tools):")
+                projects.take(25).forEach { p ->
+                    val docs = index.listDocuments(p.id)
+                    append("- ").append(p.name).append(" [id ").append(p.id).append("]: ")
+                    append(docs.size).append(" document(s), ").append(docs.sumOf { it.pageCount }).append(" pages")
+                    val ocr = docs.count { it.status == "needs_ocr" }
+                    if (ocr > 0) append(", ").append(ocr).append(" need OCR")
+                    appendLine()
+                }
+                if (projects.size > 25) appendLine("- … ${projects.size - 25} more (legal_project_list)")
+            }.trim()
+        }.getOrDefault("")
+    },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -339,5 +361,34 @@ fun legalAuthoritiesTool(index: LegalIndex): Tool = Tool(
                 }
             }
         }.toString())
+    },
+)
+
+fun legalDocumentOcrTool(index: LegalIndex, ocr: me.rerere.rikkahub.legal.rag.LegalOcr): Tool = Tool(
+    name = "legal_document_ocr",
+    description = "Run OCR on the scanned pages (pages with no text layer) of an indexed PDF or image using the " +
+        "user's OCR vision model, then re-index the document. Use when legal_project_list shows needs_ocr or " +
+        "pages_without_text. Page numbers are preserved. OCR text may contain recognition errors — quote it " +
+        "only after legal_quote_check and tell counsel the passage came from OCR.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject { put("doc_id", prop("integer", "Document id from legal_project_list")) },
+            required = listOf("doc_id"),
+        )
+    },
+    execute = { input ->
+        val id = input.jsonObject.long("doc_id") ?: return@Tool fmTextPart(fmErrEnvelope("missing_doc_id", "doc_id is required"))
+        val doc = index.getDocument(id) ?: return@Tool fmTextPart(fmErrEnvelope("not_found", "No document $id"))
+        if (!ocr.isConfigured()) return@Tool fmTextPart(fmErrEnvelope("no_ocr_model", "No OCR model selected; ask the user to pick one in Settings → Models → OCR"))
+        runCatching { ocr.ocrDocument(id) }.fold(
+            onSuccess = { n ->
+                val after = index.getDocument(id)
+                fmTextPart(buildJsonObject {
+                    put("doc_id", id); put("title", doc.title); put("pages_ocred", n)
+                    after?.let { put("status", it.status); put("pages_still_without_text", it.emptyPages) }
+                }.toString())
+            },
+            onFailure = { fmTextPart(fmErrEnvelope("ocr_failed", it.message ?: it.toString())) },
+        )
     },
 )

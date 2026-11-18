@@ -35,6 +35,7 @@ val appModule = module {
     single { me.rerere.rikkahub.legal.rag.RerankClient(get<okhttp3.OkHttpClient>()) }
     single { me.rerere.rikkahub.legal.rag.LegalIngestor(get(), get(), get(), get()) }
     single { me.rerere.rikkahub.legal.rag.LegalRetriever(get(), get(), get(), get()) }
+    single { me.rerere.rikkahub.legal.rag.LegalOcr(get(), get(), get(), get(), get()) }
 
     single {
         AppEventBus()

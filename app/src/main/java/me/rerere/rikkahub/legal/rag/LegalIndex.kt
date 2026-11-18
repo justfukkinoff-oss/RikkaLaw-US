@@ -295,31 +295,65 @@ class LegalIndex(context: Context) {
                 put("created_at", now)
             })
             require(docId > 0) { "document already indexed in this project" }
-            val chunkIds = LongArray(d.chunks.size)
-            d.chunks.forEachIndexed { i, ch ->
-                chunkIds[i] = db.insert("chunks", CONFLICT_IGNORE, ContentValues().apply {
-                    put("doc_id", docId); put("project_id", d.projectId); put("ord", ch.ordinal)
-                    put("page_start", ch.pageStart); put("page_end", ch.pageEnd)
-                    put("heading", ch.heading.orEmpty()); put("text", ch.text)
-                    put("char_start", ch.start); put("char_end", ch.end)
-                })
-            }
-            d.citations.forEach { c ->
-                val owner = d.chunks.indexOfFirst { c.start >= it.start && c.start < it.end }
-                db.insert("citations", CONFLICT_IGNORE, ContentValues().apply {
-                    put("doc_id", docId); put("project_id", d.projectId)
-                    if (owner >= 0) put("chunk_id", chunkIds[owner])
-                    put("kind", c.kind.name); put("cite_key", c.key); put("raw", c.raw)
-                    put("case_name", c.caseName); put("pin", c.pin); put("year", c.year); put("court", c.court)
-                    put("char_start", c.start); put("char_end", c.end)
-                })
-            }
+            insertChunksAndCitations(docId, d)
             db.execSQL("UPDATE projects SET updated_at = ? WHERE id = ?", arrayOf<Any?>(now, d.projectId))
             db.setTransactionSuccessful()
             return docId
         } finally {
             db.endTransaction()
         }
+    }
+
+    private fun insertChunksAndCitations(docId: Long, d: NewDocument) {
+        val chunkIds = LongArray(d.chunks.size)
+        d.chunks.forEachIndexed { i, ch ->
+            chunkIds[i] = db.insert("chunks", CONFLICT_IGNORE, ContentValues().apply {
+                put("doc_id", docId); put("project_id", d.projectId); put("ord", ch.ordinal)
+                put("page_start", ch.pageStart); put("page_end", ch.pageEnd)
+                put("heading", ch.heading.orEmpty()); put("text", ch.text)
+                put("char_start", ch.start); put("char_end", ch.end)
+            })
+        }
+        d.citations.forEach { c ->
+            val owner = d.chunks.indexOfFirst { c.start >= it.start && c.start < it.end }
+            db.insert("citations", CONFLICT_IGNORE, ContentValues().apply {
+                put("doc_id", docId); put("project_id", d.projectId)
+                if (owner >= 0) put("chunk_id", chunkIds[owner])
+                put("kind", c.kind.name); put("cite_key", c.key); put("raw", c.raw)
+                put("case_name", c.caseName); put("pin", c.pin); put("year", c.year); put("court", c.court)
+                put("char_start", c.start); put("char_end", c.end)
+            })
+        }
+    }
+
+    /**
+     * Replace a document's text (e.g. after OCR) keeping its id, so earlier tool results and
+     * conversation references stay valid. Embeddings are dropped and must be rebuilt.
+     */
+    fun replaceContent(docId: Long, d: NewDocument) {
+        val now = System.currentTimeMillis()
+        db.beginTransaction()
+        try {
+            db.execSQL("DELETE FROM chunks WHERE doc_id = ?", arrayOf<Any?>(docId))
+            db.execSQL("DELETE FROM citations WHERE doc_id = ?", arrayOf<Any?>(docId))
+            db.update("documents", CONFLICT_IGNORE, ContentValues().apply {
+                put("page_count", d.prepared.pageNumbers.size); put("char_count", d.prepared.text.length)
+                put("status", if (d.chunks.isEmpty() && d.emptyPages > 0) DocStatus.NEEDS_OCR else DocStatus.INDEXED)
+                put("embed_status", EmbedStatus.NONE)
+                putNull("error")
+                put("empty_pages", d.emptyPages)
+                put("full_text", d.prepared.text)
+                put("page_starts", d.prepared.pageStarts.joinToString(","))
+                put("page_numbers", d.prepared.pageNumbers.joinToString(","))
+            }, "id = ?", arrayOf<Any?>(docId))
+            insertChunksAndCitations(docId, d)
+            db.execSQL("UPDATE projects SET updated_at = ? WHERE id = ?", arrayOf<Any?>(now, d.projectId))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        version.incrementAndGet()
+        vectorCache.remove(d.projectId)
     }
 
     fun deleteDocument(docId: Long) {

@@ -175,6 +175,7 @@ fun ProjectDetailPage(projectId: String, vm: ProjectsVM = koinViewModel()) {
     val projects by vm.projects.collectAsStateWithLifecycle()
     val documents by vm.documents.collectAsStateWithLifecycle()
     val progress by vm.progress.collectAsStateWithLifecycle()
+    val ocrProgress by vm.ocrProgress.collectAsStateWithLifecycle()
     val message by vm.messages.collectAsStateWithLifecycle()
     val results by vm.searchResults.collectAsStateWithLifecycle()
     val embedModel by vm.embeddingModelLabel.collectAsStateWithLifecycle()
@@ -293,7 +294,11 @@ fun ProjectDetailPage(projectId: String, vm: ProjectsVM = koinViewModel()) {
 
             item { Text("Documents (${docs.size})", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(4.dp)) }
             items(docs, key = { "doc-${it.id}" }) { d ->
-                DocumentCard(d, progress["doc:${d.id}"], onDelete = { vm.deleteDocument(projectId, d.id) })
+                DocumentCard(
+                    d, progress["doc:${d.id}"], ocrProgress[d.id],
+                    onOcr = { vm.runOcr(projectId, d.id) },
+                    onDelete = { vm.deleteDocument(projectId, d.id) },
+                )
             }
         }
     }
@@ -333,7 +338,13 @@ private fun ProgressCard(p: IngestProgress) {
 }
 
 @Composable
-private fun DocumentCard(d: LegalDocument, p: IngestProgress?, onDelete: () -> Unit) {
+private fun DocumentCard(
+    d: LegalDocument,
+    p: IngestProgress?,
+    ocr: Pair<Int, Int>?,
+    onOcr: () -> Unit,
+    onDelete: () -> Unit,
+) {
     var confirm by remember { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -356,6 +367,12 @@ private fun DocumentCard(d: LegalDocument, p: IngestProgress?, onDelete: () -> U
                 }
                 Text(parts.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 d.error?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, maxLines = 2) }
+                if (ocr != null) {
+                    Text("OCR page ${ocr.first} of ${ocr.second}", style = MaterialTheme.typography.labelSmall)
+                    LinearProgressIndicator(progress = { ocr.first.toFloat() / ocr.second.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+                } else if (d.emptyPages > 0) {
+                    TextButton(onClick = onOcr, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text("Run OCR on ${d.emptyPages} page(s)") }
+                }
                 if (p != null && p.stage == IngestProgress.Stage.EMBEDDING && p.total > 0) {
                     LinearProgressIndicator(progress = { p.done.toFloat() / p.total }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
                 }

@@ -25,6 +25,8 @@ internal const val MCP_OAUTH_CALLBACK_PORT = 52_134
 internal const val MCP_OAUTH_CALLBACK_PATH = "/oauth/callback"
 internal const val MCP_OAUTH_REDIRECT_URI =
     "http://localhost:$MCP_OAUTH_CALLBACK_PORT$MCP_OAUTH_CALLBACK_PATH"
+/** Shown in settings so users can register a pre-configured OAuth app. */
+const val MCP_OAUTH_REDIRECT_URI_PUBLIC: String = MCP_OAUTH_REDIRECT_URI
 // 托管在 GitHub Pages 上的 Client ID Metadata Document，其 redirect_uris 必须与 MCP_OAUTH_REDIRECT_URI 一致
 internal const val MCP_OAUTH_CLIENT_METADATA_URL = "https://rikkahub.github.io/oauth/client.json"
 private val OAUTH_CALLBACK_TIMEOUT = 5.minutes
@@ -117,7 +119,15 @@ internal class McpOAuthCoordinator(
                 config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
             }.getOrElse {
                 Log.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
-                config
+                // A rejected refresh token (revoked / expired / rotated elsewhere) cannot recover
+                // by retrying: drop the dead tokens and ask the user to sign in again.
+                val msg = (it.message ?: "").lowercase()
+                if ("invalid_grant" in msg || "invalid_token" in msg || "400" in msg || "401" in msg) {
+                    val cleared = oauth.copy(accessToken = null, refreshToken = null, expiresAt = 0L)
+                    persistOAuthState(config.id, cleared)
+                    updateStatus(config.id, McpStatus.NeedsAuthorization)
+                    config.clone(commonOptions = config.commonOptions.copy(oauth = cleared))
+                } else config
             }
         }
     }
@@ -136,7 +146,7 @@ internal class McpOAuthCoordinator(
 
     private suspend fun authorize(config: McpServerConfig, context: Context) = withContext(Dispatchers.IO) {
         val serverUrl = config.serverUrl
-        require(serverUrl.isNotBlank()) { "Server URL 为空，无法授权" }
+        require(serverUrl.isNotBlank()) { "Server URL is empty; cannot authorize" }
 
         // 部分服务器（如 Zomato）不提供 RFC 9728 元数据，按旧版规范退回到服务器 origin 作为授权服务器
         val protectedResource = runCatching { discoveryClient.discoverProtectedResource(serverUrl) }
@@ -144,12 +154,12 @@ internal class McpOAuthCoordinator(
             .getOrNull()
         val issuer = protectedResource?.authorizationServers?.firstOrNull()
             ?: McpOAuthDiscoveryClient.serverOrigin(serverUrl)
-            ?: error("无法确定授权服务器")
+            ?: error("Could not determine the authorization server")
         val metadata = discoveryClient.discoverAuthorizationServer(issuer)
         val authorizationEndpoint = metadata.authorizationEndpoint
-            ?: error("授权服务器缺少 authorization_endpoint")
+            ?: error("Authorization server metadata has no authorization_endpoint")
         val tokenEndpoint = metadata.tokenEndpoint
-            ?: error("授权服务器缺少 token_endpoint")
+            ?: error("Authorization server metadata has no token_endpoint")
         val scope = config.commonOptions.oauth?.scope
             ?: protectedResource?.scopesSupported?.joinToString(" ")
             ?: metadata.scopesSupported?.joinToString(" ")
@@ -161,10 +171,13 @@ internal class McpOAuthCoordinator(
         try {
             val redirectUri = callbackSession.redirectUri
             check(redirectUri == MCP_OAUTH_REDIRECT_URI) {
-                "OAuth 回调服务器地址不一致: $redirectUri"
+                "OAuth callback address mismatch: $redirectUri"
             }
             val existing = config.commonOptions.oauth
-            val canReuseClient = existing?.redirectUri == redirectUri && !existing.clientId.isNullOrBlank()
+            // Reuse a registered client for the same redirect URI, or a client id the user entered
+            // manually (pre-registered app: no redirectUri recorded yet).
+            val canReuseClient = existing != null && !existing.clientId.isNullOrBlank() &&
+                (existing.redirectUri == null || existing.redirectUri == redirectUri)
             var clientId = existing?.clientId.takeIf { canReuseClient }
             var clientSecret = existing?.clientSecret.takeIf { canReuseClient }
             if (clientId.isNullOrBlank() && metadata.registrationEndpoint == null &&
@@ -176,17 +189,34 @@ internal class McpOAuthCoordinator(
             }
             if (clientId.isNullOrBlank()) {
                 val registrationEndpoint = metadata.registrationEndpoint
-                    ?: error("授权服务器不支持动态注册，且未预配置 client_id")
-                val registration = oauthClient.registerClient(
-                    registrationEndpoint = registrationEndpoint,
-                    request = OAuthHttpClient.ClientRegistrationRequest(
-                        clientName = config.commonOptions.name.ifBlank { "RikkaLaw-U.S." },
-                        redirectUris = listOf(redirectUri),
-                        scope = scope,
-                    ),
-                )
-                clientId = registration.clientId
-                clientSecret = registration.clientSecret
+                    ?: error(
+                        "This server does not support dynamic client registration. Register an OAuth app with " +
+                            "the provider using redirect URI $redirectUri, then enter its Client ID (and secret, " +
+                            "if any) in this MCP server's OAuth settings and authorize again."
+                    )
+                val registration = runCatching {
+                    oauthClient.registerClient(
+                        registrationEndpoint = registrationEndpoint,
+                        request = OAuthHttpClient.ClientRegistrationRequest(
+                            clientName = "RikkaLaw — " + config.commonOptions.name.ifBlank { "MCP" },
+                            redirectUris = listOf(redirectUri),
+                            scope = scope,
+                        ),
+                    )
+                }.getOrElse { e ->
+                    if (metadata.clientIdMetadataDocumentSupported) null
+                    else error(
+                        "Dynamic client registration failed (${e.message}). Enter a pre-registered Client ID " +
+                            "for redirect URI $redirectUri in this server's OAuth settings."
+                    )
+                }
+                if (registration != null) {
+                    clientId = registration.clientId
+                    clientSecret = registration.clientSecret
+                } else {
+                    clientId = MCP_OAUTH_CLIENT_METADATA_URL
+                    clientSecret = null
+                }
             }
 
             persistOAuthState(
@@ -219,9 +249,9 @@ internal class McpOAuthCoordinator(
             }
 
             val callback = callbackSession.awaitCallback(OAUTH_CALLBACK_TIMEOUT)
-                ?: error("OAuth 授权超时")
+                ?: error("OAuth sign-in timed out (5 minutes). Try again.")
             callback.error?.let { error(buildAuthorizationError(it, callback.errorDescription)) }
-            val code = callback.code ?: error("授权失败: 未返回授权码")
+            val code = callback.code ?: error("Authorization failed: no authorization code returned")
 
             val token = oauthClient.exchangeAuthorizationCode(
                 OAuthHttpClient.AuthorizationCodeTokenRequest(
@@ -258,7 +288,7 @@ internal class McpOAuthCoordinator(
     }
 
     private fun buildAuthorizationError(error: String, description: String?): String =
-        if (description.isNullOrBlank()) "授权失败: $error" else "授权失败: $error ($description)"
+        if (description.isNullOrBlank()) "Authorization failed: $error" else "Authorization failed: $error ($description)"
 
     private suspend fun persistOAuthState(configId: Uuid, oauth: McpOAuthState?) {
         settingsStore.update { old ->
