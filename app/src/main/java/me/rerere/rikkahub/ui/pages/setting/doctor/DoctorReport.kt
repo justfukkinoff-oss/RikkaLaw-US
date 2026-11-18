@@ -11,12 +11,12 @@ import java.util.Locale
  * output is greppable for support flows.
  */
 object DoctorReport {
-    fun format(context: Context, checks: List<DoctorCheck>, header: String = "RikkaHub-agent — diagnostic report"): String =
+    fun format(context: Context, checks: List<DoctorCheck>, header: String = "RikkaLaw-U.S. — diagnostic report"): String =
         format(checks, header) { context.getString(it.displayNameRes) }
 
     fun format(
         checks: List<DoctorCheck>,
-        header: String = "RikkaHub-agent — diagnostic report",
+        header: String = "RikkaLaw-U.S. — diagnostic report",
         categoryName: (DoctorCategory) -> String,
     ): String =
         buildString {

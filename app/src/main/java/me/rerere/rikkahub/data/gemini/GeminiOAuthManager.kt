@@ -205,11 +205,11 @@ class GeminiOAuthManager(
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <meta http-equiv="refresh" content="0; url=$deepLink">
-                <title>RikkaHub Gemini OAuth</title>
+                <title>RikkaLaw-U.S. Gemini OAuth</title>
               </head>
               <body>
-                <p>${if (success) "Returning to RikkaHub..." else "Sign-in failed."}</p>
-                <p><a href="$deepLink">Return to RikkaHub</a></p>
+                <p>${if (success) "Returning to RikkaLaw-U.S...." else "Sign-in failed."}</p>
+                <p><a href="$deepLink">Return to RikkaLaw-U.S.</a></p>
                 <script>
                   window.location.replace("$deepLink");
                   setTimeout(function () { window.location.href = "$deepLink"; }, 500);

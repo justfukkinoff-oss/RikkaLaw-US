@@ -159,7 +159,7 @@ class BackupManager(
                     require(!stagedWal.exists() || stagedDatabase.exists()) { "Backup WAL has no matching database" }
                     if (stagedDatabase.exists()) {
                         DatabaseBackup.normalize(context, stagedDatabase)
-                        // A backup exported from upstream RikkaHub lacks the fork-only tables and
+                        // A backup exported from upstream RikkaLaw-U.S. lacks the fork-only tables and
                         // carries upstream's schema version; reconcile the staged copy before Room
                         // opens it so the import neither fails validation nor crashes on first launch.
                         ImportedDatabaseReconciler.reconcileDatabaseFile(stagedDatabase)

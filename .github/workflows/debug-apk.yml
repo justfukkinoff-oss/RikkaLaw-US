@@ -1,0 +1,133 @@
+name: debug-apk
+
+# Auto-build a debug APK on every push to main. Signing uses the DEFAULT Android
+# debug key (standard `androiddebugkey` alias, the same ones Android Studio would
+# generate), created deterministically at the start of the job. Debug APKs are
+# for testing; never ship them as release artifacts.
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assembleDebug:
+    name: assembleDebug (default debug key)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      ANDROID_USE_CCACHE: '1'
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # JDK 21 LTS: above AGP 9.x's minimum (17) and forward-compatible with the
+      # next major's expected floor.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+          accept-android-sdk-licenses: true
+
+      - name: Install ccache
+        run: |
+          sudo apt-get install -y -qq ccache > /dev/null 2>&1 || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ccache
+          }
+          ccache --version | head -1
+
+      - name: Cache ccache (native build)
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ hashFiles('llama-cpp/native/llama.cpp/**', 'llama-cpp/src/main/cpp/**', 'workspace/src/main/cpp/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Cache web-ui node_modules
+        uses: actions/cache@v4
+        with:
+          path: web-ui/node_modules
+          key: webui-${{ runner.os }}-${{ hashFiles('web-ui/bun.lock', 'web-ui/pnpm-lock.yaml') }}
+          restore-keys: |
+            webui-${{ runner.os }}-
+
+      - name: Accept SDK licenses
+        run: |
+          yes | timeout 180 sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Bootstrap web-ui lockfile
+        working-directory: web-ui
+        run: |
+          if [ -f bun.lock ]; then
+            echo "bun.lock present"
+          else
+            echo "bun.lock missing -> generating from pnpm-lock.yaml pins"
+            bun install
+          fi
+
+      # The default debug keystore: same alias/args the Android Gradle plugin
+      # would auto-generate locally; generated explicitly so every run signs
+      # deterministically on a fresh runner.
+      - name: Generate default debug signing key
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Assemble debug APKs
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Collect debug APKs
+        run: |
+          mkdir -p dist
+          short=$(git rev-parse --short HEAD)
+          for apk in app/build/outputs/apk/debug/*.apk; do
+            base=$(basename "$apk" .apk)
+            cp "$apk" "dist/${base}-${short}.apk"
+          done
+          ls -la dist/
+
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: rikkalaw-us-debug-apks
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 14
