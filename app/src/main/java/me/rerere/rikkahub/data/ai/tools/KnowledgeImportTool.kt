@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -256,7 +258,7 @@ fun buildKnowledgeImportTools(
                     put("error", "nothing_to_import")
                     put("source", source)
                     put("listedFiles", buildJsonArray {
-                        entries.take(20).forEach { entry -> add(entry.name) }
+                        entries.take(20).forEach { entry -> add(JsonPrimitive(entry.name)) }
                     })
                     put(
                         "detail",
@@ -336,7 +338,7 @@ fun buildKnowledgeImportTools(
                 put("target_dir", dirLabel)
                 put("imported_count", imported.size)
                 put("imported", buildJsonArray { imported.forEach { add(it) } })
-                put("skipped_existing", buildJsonArray { skippedExisting.forEach { add(it) } })
+                put("skipped_existing", buildJsonArray { skippedExisting.forEach { add(JsonPrimitive(it)) } })
                 put("failed", buildJsonArray { failed.forEach { add(it) } })
                 put("listed_truncated", listedTruncated)
                 put("note", KnowledgeImportRules.CORPUS_IMPORT_NOTE)
