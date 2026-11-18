@@ -450,7 +450,7 @@ class LegalIndex(context: Context) {
         val args = ArrayList<Any?>()
         if (!projectIds.isNullOrEmpty()) {
             parts += "$alias.project_id IN (${projectIds.joinToString(",") { "?" }})"
-            args += projectIds
+            args.addAll(projectIds)
         }
         if (!docIds.isNullOrEmpty()) {
             parts += "$alias.doc_id IN (${docIds.joinToString(",")})"
