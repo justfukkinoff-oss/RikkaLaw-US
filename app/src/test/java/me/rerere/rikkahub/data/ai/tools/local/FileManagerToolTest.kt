@@ -177,17 +177,17 @@ class FileManagerToolTest {
 
     // ========== write_text_file ==========
 
-    @Test fun `write_text_file auto creates RikkaHub shared-storage parents`() {
+    @Test fun `write_text_file auto creates RikkaLaw shared-storage shared-storage parents`() {
         assertTrue(
             shouldAutoCreateParent(
-                "/sdcard/Documents/RikkaHub/nested/note.txt",
-                "/sdcard/Documents/RikkaHub/nested/note.txt"
+                "/sdcard/Documents/RikkaLaw-U.S./nested/note.txt",
+                "/sdcard/Documents/RikkaLaw-U.S./nested/note.txt"
             )
         )
         assertTrue(
             shouldAutoCreateParent(
-                "/storage/emulated/0/Download/RikkaHub/nested/note.txt",
-                "/storage/emulated/0/Download/RikkaHub/nested/note.txt"
+                "/storage/emulated/0/Download/RikkaLaw-U.S./nested/note.txt",
+                "/storage/emulated/0/Download/RikkaLaw-U.S./nested/note.txt"
             )
         )
         assertFalse(

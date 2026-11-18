@@ -59,14 +59,14 @@ fun docxCreateTool(context: Context, index: LegalIndex?, ingestor: LegalIngestor
                 put("content", p("string", "Document body in legal markdown"))
                 put("title", p("string", "Document title shown under the caption, e.g. 'Brief in Support of Petition'"))
                 put("court", p("string", "Court name for the caption; use \\n between lines"))
-                putJsonObject("left_lines") {
+                put("left_lines", buildJsonObject {
                     put("type", "array"); put("description", "Caption party block lines (left column)")
-                    putJsonObject("items") { put("type", "string") }
-                }
-                putJsonObject("right_lines") {
+                    put("items", buildJsonObject { put("type", "string") })
+                })
+                put("right_lines", buildJsonObject {
                     put("type", "array"); put("description", "Caption right column lines (case number, judge, filing title)")
-                    putJsonObject("items") { put("type", "string") }
-                }
+                    put("items", buildJsonObject { put("type", "string") })
+                })
                 put("line_spacing", p("number", "1.0, 1.5 or 2.0 (default 2.0)"))
                 put("font_size", p("integer", "Font size in points (default 12)"))
                 put("header_text", p("string", "Optional replacement header; defaults to the DRAFT banner"))

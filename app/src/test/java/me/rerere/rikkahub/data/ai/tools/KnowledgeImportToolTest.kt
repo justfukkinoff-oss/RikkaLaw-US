@@ -156,7 +156,7 @@ class KnowledgeImportToolTest {
         assertTrue(result.contains(KnowledgeImportRules.CORPUS_IMPORT_NOTE))
     }
 
-    @Test fun `existing documents are skipped unless overwrite is requested`() {
+    @Test fun `existing documents are never clobbered unless overwrite is requested`() {
         val storage = FakeStorage(
             sources = mapOf("corpus" to listOf(KbSourceFile("corpus/a.md", "a.md", 100))),
             sourceTexts = mapOf("corpus/a.md" to "NEW"),
@@ -164,10 +164,11 @@ class KnowledgeImportToolTest {
         )
         val tool = storage.tools().first { it.name == "corpus_import" }
 
+        // Without overwrite the import plan routes around the existing name (kb-a-2.md).
         val kept = invoke(tool, "{}")
-        assertEquals(listOf("kb-a.md"), names(kept, "skipped_existing"))
-        assertEquals(0, obj(kept)["imported_count"]!!.jsonPrimitive.content.toInt())
+        assertEquals(1, obj(kept)["imported_count"]!!.jsonPrimitive.content.toInt())
         assertEquals("OLD", storage.kbDocs["kb-a.md"])
+        assertTrue(storage.kbDocs["kb-a-2.md"]!!.contains("NEW"))
 
         val overwrote = invoke(tool, """{"overwrite": true}""")
         assertEquals(1, obj(overwrote)["imported_count"]!!.jsonPrimitive.content.toInt())
