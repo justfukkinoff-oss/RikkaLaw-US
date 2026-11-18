@@ -52,21 +52,16 @@ import me.rerere.rikkahub.R
 private object Capability {
     val Notifications: Set<LocalToolOption> = setOf(
         LocalToolOption.Notification,        // post_notification tool
-        LocalToolOption.TelegramBot,         // FGS notification
         LocalToolOption.CronJobs,            // CronJobWorker FGS notification
         LocalToolOption.Workflows,           // WorkflowTimeCronWorker FGS notification
     )
     val FineLocation: Set<LocalToolOption> = setOf(
-        LocalToolOption.Location,            // get_location, geocode tools
-        LocalToolOption.WifiInfo,            // SSID/BSSID on Android 10+
         LocalToolOption.Workflows,           // geofence_enter / geofence_exit triggers
     )
     val NotificationListener: Set<LocalToolOption> = setOf(
-        LocalToolOption.NotificationListener,
         LocalToolOption.Workflows,           // notification_received trigger
     )
     val Accessibility: Set<LocalToolOption> = setOf(
-        LocalToolOption.ScreenAutomation,    // take_screenshot, swipe, click_at, scroll, gesture
     )
     val Termux: Set<LocalToolOption> = setOf(
         LocalToolOption.Termux,
@@ -74,7 +69,6 @@ private object Capability {
         LocalToolOption.Ssh,                 // ssh_exec calls into termux ssh
     )
     val BatteryWhitelist: Set<LocalToolOption> = setOf(
-        LocalToolOption.TelegramBot,         // long-poll loop
         LocalToolOption.CronJobs,            // worker fires
         LocalToolOption.Workflows,           // trigger receivers + cron worker
     )
@@ -86,60 +80,42 @@ private object Capability {
     )
     // Phase 25 — Phase 3 second cut.
     val SendSms: Set<LocalToolOption> = setOf(
-        LocalToolOption.SmsSend,
     )
     val Nfc: Set<LocalToolOption> = setOf(
-        LocalToolOption.Nfc,
     )
     // Permissions that previously had no Doctor check at all. Each is gated on the tool that
     // actually needs it, so a denied perm only WARNs when its feature is enabled (opt-in) and
     // stays INFO otherwise. Closes the "Doctor reported all-clear while overlay etc. were denied"
     // gap.
     val Overlay: Set<LocalToolOption> = setOf(
-        LocalToolOption.ScreenAutomation,    // "agent is working" overlay during automation
     )
     val WriteSettings: Set<LocalToolOption> = setOf(
-        LocalToolOption.Brightness,          // set_brightness writes Settings.System
     )
     val BluetoothConnect: Set<LocalToolOption> = setOf(
         LocalToolOption.Workflows,           // workflow Bluetooth triggers read paired-device state
     )
     val NearbyWifi: Set<LocalToolOption> = setOf(
-        LocalToolOption.WifiInfo,            // WiFi scan/info on Android 13+
     )
     val BackgroundLocation: Set<LocalToolOption> = setOf(
         LocalToolOption.Workflows,           // geofence triggers fire while the app is closed
     )
     val Shizuku: Set<LocalToolOption> = setOf(
-        LocalToolOption.Shizuku,             // shizuku_exec runs shell commands with Shizuku's privileges
-        LocalToolOption.VirtualDisplay,     // virtual_display_* uses `input -d` / `am start --display` via Shizuku
     )
 }
 
 /** Friendly name for the row's "needed by:" subtitle. */
 private fun LocalToolOption.shortName(ctx: Context): String = when (this) {
-    LocalToolOption.Location -> ctx.getString(R.string.tool_name_location)
-    LocalToolOption.WifiInfo -> ctx.getString(R.string.tool_name_wifi)
-    LocalToolOption.NotificationListener -> ctx.getString(R.string.tool_name_notif_listener)
-    LocalToolOption.ScreenAutomation -> ctx.getString(R.string.tool_name_screen_automation)
     LocalToolOption.Termux -> ctx.getString(R.string.tool_name_termux)
     LocalToolOption.SpeechToText -> ctx.getString(R.string.tool_name_stt)
     LocalToolOption.Ssh -> ctx.getString(R.string.tool_name_ssh)
-    LocalToolOption.TelegramBot -> ctx.getString(R.string.tool_name_tg_bot)
     LocalToolOption.CronJobs -> ctx.getString(R.string.tool_name_cron)
     LocalToolOption.Workflows -> ctx.getString(R.string.tool_name_workflows)
     LocalToolOption.Notification -> ctx.getString(R.string.tool_name_notification)
     LocalToolOption.Files -> ctx.getString(R.string.tool_name_files)
     LocalToolOption.Browser -> ctx.getString(R.string.tool_name_browser)
-    LocalToolOption.SmsSend -> ctx.getString(R.string.tool_name_sms_send)
-    LocalToolOption.Wallpaper -> ctx.getString(R.string.tool_name_wallpaper)
     LocalToolOption.Keystore -> ctx.getString(R.string.tool_name_keystore)
-    LocalToolOption.Nfc -> ctx.getString(R.string.tool_name_nfc)
     LocalToolOption.ExternalStorage -> ctx.getString(R.string.tool_name_ext_storage)
     LocalToolOption.Archive -> ctx.getString(R.string.tool_name_archive)
-    LocalToolOption.Shizuku -> ctx.getString(R.string.tool_name_shizuku)
-    LocalToolOption.AppLauncher -> ctx.getString(R.string.tool_name_app_launcher)
-    LocalToolOption.KeyboardControl -> ctx.getString(R.string.tool_name_keyboard)
     else -> this::class.simpleName ?: "?"
 }
 
@@ -787,70 +763,11 @@ class DoctorChecks(
         }
 
         val accBound = AccessibilityServiceHandle.isRunning()
-        add(
-            groupRow(
-                id = "tools.screen_automation",
-                option = LocalToolOption.ScreenAutomation,
-                label = context.getString(R.string.doctor_check_screen_automation),
-                reliesOn = context.getString(R.string.doctor_relies_on_acc_overlay),
-                backendReady = accBound,
-                backendDetail = if (accBound) context.getString(R.string.doctor_detail_backend_acc_bound)
-                else context.getString(R.string.doctor_detail_backend_acc_not_bound),
-                fix = FixAction.OpenAppRoute(context.getString(R.string.doctor_fix_open_permissions), AppRouteKey.SettingPermissions),
-            )
-        )
-        add(
-            groupRow(
-                id = "tools.app_launcher",
-                option = LocalToolOption.AppLauncher,
-                label = context.getString(R.string.doctor_check_app_launcher),
-                reliesOn = context.getString(R.string.doctor_relies_on_launch),
-                backendReady = true,
-                backendDetail = if (accBound) context.getString(R.string.doctor_detail_backend_launch_acc_available)
-                else context.getString(R.string.doctor_detail_backend_launch_no_acc),
-                fix = null,
-            )
-        )
         val kbInstalled = me.rerere.rikkahub.data.keyboard.KeyboardApiClient(context).isKeyboardInstalled()
         val kbIme = me.rerere.rikkahub.data.keyboard.KeyboardApiClient.isEnabledAsIme(context)
-        add(
-            groupRow(
-                id = "tools.keyboard",
-                option = LocalToolOption.KeyboardControl,
-                label = context.getString(R.string.doctor_check_agent_keyboard),
-                reliesOn = context.getString(R.string.doctor_relies_on_keyboard),
-                backendReady = kbInstalled && kbIme,
-                backendDetail = when {
-                    !kbInstalled -> context.getString(R.string.doctor_detail_kb_not_installed)
-                    !kbIme -> context.getString(R.string.doctor_detail_kb_installed_not_enabled)
-                    else -> context.getString(R.string.doctor_detail_kb_ok)
-                },
-                fix = FixAction.OpenIntent(
-                    context.getString(R.string.doctor_fix_open_keyboard_settings),
-                    android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS),
-                ),
-            )
-        )
         // Notification listener / Termux / Shizuku / Files / Browser rows reuse the
         // readiness probes the existing category checks already compute, rather than
         // duplicating logic inline.
-        add(
-            groupRow(
-                id = "tools.notification_listener",
-                option = LocalToolOption.NotificationListener,
-                label = context.getString(R.string.doctor_check_notif_listener),
-                reliesOn = context.getString(R.string.doctor_relies_on_notification_listener),
-                backendReady = PermissionHelper.hasNotificationListener(context),
-                backendDetail = if (PermissionHelper.hasNotificationListener(context))
-                    context.getString(R.string.doctor_detail_nl_granted)
-                else
-                    context.getString(R.string.doctor_detail_backend_nl_not_granted),
-                fix = FixAction.OpenIntent(
-                    context.getString(R.string.doctor_fix_open_settings),
-                    PermissionHelper.notificationListenerSettingsIntent(),
-                ),
-            )
-        )
         val termuxInstalled = isTermuxInstalled()
         add(
             groupRow(
@@ -865,24 +782,6 @@ class DoctorChecks(
             )
         )
         val shizukuStatus = ShizukuManager.status(context)
-        add(
-            groupRow(
-                id = "tools.shizuku",
-                option = LocalToolOption.Shizuku,
-                label = context.getString(R.string.doctor_check_shizuku),
-                reliesOn = context.getString(R.string.doctor_relies_on_shizuku),
-                backendReady = shizukuStatus == ShizukuStatus.READY,
-                backendDetail = when (shizukuStatus) {
-                    ShizukuStatus.READY -> context.getString(R.string.doctor_detail_shizuku_ready)
-                    ShizukuStatus.NOT_INSTALLED -> context.getString(R.string.doctor_detail_shizuku_not_installed)
-                    ShizukuStatus.NOT_RUNNING -> context.getString(R.string.doctor_detail_shizuku_not_running)
-                    ShizukuStatus.PERMISSION_DENIED -> context.getString(R.string.doctor_detail_shizuku_no_permission)
-                },
-                fix = if (shizukuStatus != ShizukuStatus.READY)
-                    FixAction.OpenAppRoute(context.getString(R.string.doctor_fix_open_shizuku), AppRouteKey.SettingShizuku)
-                else null,
-            )
-        )
         val filesReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.R || PermissionHelper.hasAllFilesAccess(context)
         add(
             groupRow(

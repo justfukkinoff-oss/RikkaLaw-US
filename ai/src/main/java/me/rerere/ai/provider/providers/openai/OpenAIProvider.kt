@@ -23,6 +23,7 @@ import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.provider.ImageEditParams
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationResult
@@ -138,6 +139,7 @@ class OpenAIProvider(
                     Model(
                         modelId = id,
                         displayName = id,
+                        type = guessModelTypeFromId(id),
                     )
                 }
             }
@@ -1368,5 +1370,18 @@ class OpenAIProvider(
 
     companion object {
         private val SUPPORTED_EDIT_IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp")
+    }
+}
+
+/**
+ * Best-effort type for OpenAI-compatible `/models` entries that carry no type metadata
+ * (NVIDIA NIM, Groq, local servers). Lets the Embedding / Rerank slot pickers find them.
+ */
+internal fun guessModelTypeFromId(id: String): ModelType {
+    val l = id.lowercase()
+    return when {
+        "rerank" in l || "reranker" in l || l.endsWith("-ranking") -> ModelType.RERANK
+        "embed" in l || "bge-" in l || "e5-" in l || "gte-" in l || "nomic-embed" in l -> ModelType.EMBEDDING
+        else -> ModelType.CHAT
     }
 }

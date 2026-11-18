@@ -4,6 +4,17 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Clean
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Upload02
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.files.saveUploadFromUri
+import me.rerere.rikkahub.legal.rag.LegalIngestor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +84,12 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun SettingFilesPage(
     filesManager: FilesManager = koinInject(),
+    settingsStore: SettingsStore = koinInject(),
+    ingestor: LegalIngestor = koinInject(),
+    appScope: AppScope = koinInject(),
 ) {
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    var uploading by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
@@ -91,6 +107,33 @@ fun SettingFilesPage(
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
     val files by filesManager.observe(selectedFolder).collectAsStateWithLifecycle(initialValue = emptyList())
+
+    // Direct upload. Files land in the managed upload folder (usable as chat attachments and by
+    // the file tools) and, when enabled, are also indexed into the Library project for RAG.
+    val uploadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        uploading = true
+        val index = settings.indexUploads
+        appScope.launch {
+            var saved = 0; var indexed = 0; val errors = ArrayList<String>()
+            for (u in uris) {
+                val entity = runCatching { filesManager.saveUploadFromUri(u) }
+                    .onFailure { errors += (it.message ?: it.toString()) }.getOrNull() ?: continue
+                saved++
+                if (index) {
+                    runCatching {
+                        ingestor.ingestFile(ingestor.libraryProject().id, filesManager.getFile(entity), entity.displayName)
+                    }.onSuccess { indexed++ }.onFailure { errors += "${entity.displayName}: ${it.message}" }
+                }
+            }
+            uploading = false
+            toaster.show(buildString {
+                append("Uploaded $saved file(s)")
+                if (index) append(", indexed $indexed into Library")
+                if (errors.isNotEmpty()) append(". ").append(errors.joinToString("; ").take(200))
+            })
+        }
+    }
 
     if (pendingDelete != null) {
         val target = pendingDelete!!
@@ -171,6 +214,13 @@ fun SettingFilesPage(
                 colors = CustomColors.topBarColors
             )
         },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { if (!uploading) uploadLauncher.launch(arrayOf("*/*")) },
+                icon = { Icon(HugeIcons.Upload02, contentDescription = null) },
+                text = { Text(if (uploading) "Uploading…" else "Upload") },
+            )
+        },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { innerPadding ->
@@ -189,6 +239,25 @@ fun SettingFilesPage(
                 selectedFolder = selectedFolder,
                 onFolderSelected = { selectedFolder = it }
             )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Index uploads for AI search", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Adds each upload to the Library project (full-text, exact-phrase and citation index; " +
+                            "embedded automatically when an embedding model is set).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = settings.indexUploads,
+                    onCheckedChange = { v -> scope.launch { settingsStore.update { it.copy(indexUploads = v) } } },
+                )
+            }
 
             if (files.isEmpty()) {
                 Box(

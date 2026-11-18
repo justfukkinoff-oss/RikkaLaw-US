@@ -45,11 +45,11 @@ class AgentDefinitionSurfaceFieldsTest {
     fun `local_tools accept string ids and canonicalise to LocalToolGroups order`() {
         val parsed = parseLocalTools(
             buildJsonArray {
-                add("screen_automation")
+                add("files")
                 add("time_info")
             },
         ).getOrThrow()
-        assertEquals(listOf(LocalToolOption.TimeInfo, LocalToolOption.ScreenAutomation), parsed)
+        assertEquals(listOf(LocalToolOption.TimeInfo, LocalToolOption.Files), parsed)
     }
 
     @Test
@@ -86,7 +86,8 @@ class AgentDefinitionSurfaceFieldsTest {
     @Test
     fun `the valid id vocabulary includes the ids the schema advertises`() {
         assertTrue(VALID_LOCAL_TOOL_IDS.contains("time_info"))
-        assertTrue(VALID_LOCAL_TOOL_IDS.contains("screen_automation"))
+        assertTrue(VALID_LOCAL_TOOL_IDS.contains("files"))
+        assertTrue(VALID_LOCAL_TOOL_IDS.contains("legal_research"))
     }
 
     // ---- string sets ---------------------------------------------------------------------

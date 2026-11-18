@@ -120,6 +120,9 @@ fun WorkspaceDetailPage(id: String) {
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var showInstallDialog by remember { mutableStateOf(false) }
+    var showBootstrapDialog by remember { mutableStateOf(false) }
+    val bootstrapRunning by vm.bootstrapRunning.collectAsStateWithLifecycle()
+    val bootstrapOutput by vm.bootstrapOutput.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val filePicker = rememberLauncherForActivityResult(
@@ -240,6 +243,8 @@ fun WorkspaceDetailPage(id: String) {
                     workspace = state.workspace,
                     installProgress = installProgress,
                     onInstallRootfs = { showInstallDialog = true },
+                    bootstrapRunning = bootstrapRunning,
+                    onBootstrap = { showBootstrapDialog = true },
                     onToolApprovalChange = vm::setToolApproval,
                     onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                 )
@@ -349,6 +354,31 @@ fun WorkspaceDetailPage(id: String) {
         }
     }
 
+    if (showBootstrapDialog) {
+        BootstrapDialog(
+            onDismiss = { showBootstrapDialog = false },
+            onConfirm = { profiles ->
+                vm.bootstrap(profiles)
+                showBootstrapDialog = false
+            },
+        )
+    }
+
+    bootstrapOutput?.let { output ->
+        AlertDialog(
+            onDismissRequest = vm::dismissBootstrapOutput,
+            title = { Text("Workspace toolkits") },
+            text = {
+                Text(
+                    output,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                )
+            },
+            confirmButton = { TextButton(onClick = vm::dismissBootstrapOutput) { Text(stringResource(R.string.common_confirm)) } },
+        )
+    }
+
     installError?.let { message ->
         AlertDialog(
             onDismissRequest = vm::dismissInstallError,
@@ -429,6 +459,8 @@ private fun WorkspaceBasicPage(
     workspace: WorkspaceEntity?,
     installProgress: RootfsInstallProgress?,
     onInstallRootfs: () -> Unit,
+    bootstrapRunning: Boolean,
+    onBootstrap: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
 ) {
@@ -488,6 +520,16 @@ private fun WorkspaceBasicPage(
                                 )
                             }
                             installProgress?.let { RootfsProgress(it) }
+                            if (rootfsReady) {
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = onBootstrap,
+                                    enabled = !installing && !bootstrapRunning,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(if (bootstrapRunning) "Installing toolkits…" else "Install legal toolkits (python, OCR, docx…)")
+                                }
+                                if (bootstrapRunning) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
                         }
                     },
                 )
@@ -1078,3 +1120,52 @@ internal fun String.toShellStatusLabel(): String = when (this) {
 
 private const val DEFAULT_ROOTFS_URL =
     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz"
+
+@Composable
+private fun BootstrapDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Set<me.rerere.workspace.BootstrapProfile>) -> Unit,
+) {
+    var selected by remember {
+        mutableStateOf(
+            setOf(
+                me.rerere.workspace.BootstrapProfile.CORE,
+                me.rerere.workspace.BootstrapProfile.RESEARCH,
+                me.rerere.workspace.BootstrapProfile.DRAFTING,
+            )
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Install legal toolkits") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    "Installs packages inside this sandboxed Linux workspace with apt (Ubuntu) or apk (Alpine). " +
+                        "Needs a network connection; OCR is large (~300 MB).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                me.rerere.workspace.BootstrapProfile.entries.forEach { p ->
+                    val core = p == me.rerere.workspace.BootstrapProfile.CORE
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = core || p in selected,
+                            enabled = !core,
+                            onCheckedChange = { on -> selected = if (on) selected + p else selected - p },
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(p.label, style = MaterialTheme.typography.bodyMedium)
+                            Text(p.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(selected) }) { Text(stringResource(R.string.common_install)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+    )
+}

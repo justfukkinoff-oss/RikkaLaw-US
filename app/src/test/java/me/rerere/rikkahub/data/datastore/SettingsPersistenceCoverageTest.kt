@@ -49,6 +49,9 @@ class SettingsPersistenceCoverageTest {
         "selectedTTSProviderId" to "selected_tts_provider",
         "defaultTTSPlaybackSpeed" to "default_tts_playback_speed",
         "selectedASRProviderId" to "selected_asr_provider",
+        "embeddingModelId" to "legal_embedding_model",
+        "rerankModelId" to "legal_rerank_model",
+        "indexUploads" to "legal_index_uploads",
     )
 
     /** `init` is a `@Transient` marker for [Settings.dummy]; it is never written to disk. */

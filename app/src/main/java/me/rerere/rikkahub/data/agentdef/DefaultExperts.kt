@@ -42,8 +42,11 @@ val DEFAULT_EXPERTS: List<AgentDefinition> = listOf(
             - State a search plan and a token budget before running a long search.
             - Record every authority with its full citation (volume reporter page), court,
               filing/petition date, and a URL when one exists.
-            - Use search_web / web_fetch / scrape_web for current sources; CourtListener
-              search (/api/rest/v4/search/) for case law. Citation VALIDATION is not your job.
+            - Record first: legal_search (hybrid / exact / citation modes), legal_document_read
+              and legal_authorities over the user's Projects; cite record facts (Document, p. N).
+            - Law: case_law_search (CourtListener opinions; type=r for federal dockets),
+              case_law_opinion for full text, us_code_section for statutes; search_web /
+              web_fetch for state rules and secondary sources. Citation VALIDATION is not your job.
             - Distinguish holdings from dicta, and majority from concurrence/dissent.
             - Note jurisdiction, procedural posture, and year for every case — an
               out-of-circuit distinction matters for §2254 / §2255 work.
@@ -73,8 +76,9 @@ val DEFAULT_EXPERTS: List<AgentDefinition> = listOf(
                throttled), matched case name(s), court, date, and the CourtListener URL.
             3. Statutes, law journals, "id." and "supra" are NOT verifiable by the tool —
                mark them "statute — manual check".
-            4. For quotations, fetch the matched opinion (web_fetch on the CourtListener URL)
-               and compare the quoted wording character-for-character; report any mismatch.
+            4. For quotations from case law, fetch the opinion with case_law_opinion (cluster_id
+               from citation_verify) and compare the wording character-for-character. For
+               quotations from the record, run legal_quote_check. Report any mismatch.
             5. A lookup failure is never a verification success. Unverified stays unverified;
                errors and timeouts stay unresolved. Never upgrade a verdict.
 
@@ -111,8 +115,9 @@ val DEFAULT_EXPERTS: List<AgentDefinition> = listOf(
             - For petitions and motions follow the habeas posture checklist: custody and
               jurisdiction, §2254 vs §2255, exhaustion, procedural default / cause &
               prejudice, AEDPA §2254(d), the one-year clock and tolling, claims inventory.
-            - Save drafts under agents/drafter/ (workspace_write_file). For .docx output use
-              python-docx via the workspace bootstrap and name files "<matter>-DRAFT.docx".
+            - For .docx output call docx_create (caption, headings, footnotes, tables; works
+              on-device without the workspace) and name files "<matter>-DRAFT". Save working
+              markdown under agents/drafter/ (workspace_write_file).
             - Write clean prose with markdown headings; keep process commentary out of the
               deliverable.
         """,

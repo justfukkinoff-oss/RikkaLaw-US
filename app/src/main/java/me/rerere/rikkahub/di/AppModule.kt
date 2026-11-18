@@ -29,6 +29,13 @@ import org.koin.dsl.module
 
 val appModule = module {
     single<Json> { JsonInstant }
+    // RikkaLaw legal RAG: on-device index, model clients, ingestion and hybrid retrieval.
+    single { me.rerere.rikkahub.legal.rag.LegalIndex(get()) }
+    single { me.rerere.rikkahub.legal.rag.EmbeddingClient(get<okhttp3.OkHttpClient>()) }
+    single { me.rerere.rikkahub.legal.rag.RerankClient(get<okhttp3.OkHttpClient>()) }
+    single { me.rerere.rikkahub.legal.rag.LegalIngestor(get(), get(), get(), get()) }
+    single { me.rerere.rikkahub.legal.rag.LegalRetriever(get(), get(), get(), get()) }
+    single { me.rerere.rikkahub.legal.rag.LegalOcr(get(), get(), get(), get(), get()) }
 
     single {
         AppEventBus()

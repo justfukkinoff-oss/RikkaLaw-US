@@ -40,4 +40,48 @@ object PdfParser {
             document.destroy()
         }
     }
+
+    /**
+     * Page-aware extraction for indexing. Returns (1-based page number, text) for each page,
+     * reading at most [maxPages]. Pages without a text layer come back as empty strings so the
+     * caller can flag them for OCR. [onPage] reports progress (pagesDone, pageCount).
+     */
+    fun parsePages(
+        file: File,
+        maxPages: Int = 10_000,
+        onPage: ((Int, Int) -> Unit)? = null,
+    ): List<Pair<Int, String>> {
+        val document = PDFDocument.openDocument(file.absolutePath).asPDF()
+        try {
+            val pageCount = document.countPages()
+            val pagesToRead = minOf(pageCount, maxPages)
+            val out = ArrayList<Pair<Int, String>>(pagesToRead)
+            for (i in 0 until pagesToRead) {
+                val page = document.loadPage(i)
+                try {
+                    val st = page.toStructuredText()
+                    try {
+                        out += (i + 1) to st.asText()
+                    } finally {
+                        st.destroy()
+                    }
+                } finally {
+                    page.destroy()
+                }
+                onPage?.invoke(i + 1, pagesToRead)
+            }
+            return out
+        } finally {
+            document.destroy()
+        }
+    }
+
+    fun pageCount(file: File): Int {
+        val document = PDFDocument.openDocument(file.absolutePath).asPDF()
+        try {
+            return document.countPages()
+        } finally {
+            document.destroy()
+        }
+    }
 }

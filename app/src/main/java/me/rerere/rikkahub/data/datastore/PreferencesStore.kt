@@ -197,6 +197,9 @@ class SettingsStore(
         val TRANSLATE_THINKING_BUDGET = intPreferencesKey("translate_thinking_budget")
         val SUGGESTION_PROMPT = stringPreferencesKey("suggestion_prompt")
         val OCR_MODEL = stringPreferencesKey("ocr_model")
+        val EMBEDDING_MODEL = stringPreferencesKey("legal_embedding_model")
+        val RERANK_MODEL = stringPreferencesKey("legal_rerank_model")
+        val INDEX_UPLOADS = booleanPreferencesKey("legal_index_uploads")
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
         val COMPRESS_MODEL = stringPreferencesKey("compress_model")
         val COMPRESS_PROMPT = stringPreferencesKey("compress_prompt")
@@ -326,6 +329,9 @@ class SettingsStore(
                 preferences[TRANSLATE_THINKING_BUDGET] = settings.translateThinkingBudget
                 preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
                 preferences[OCR_MODEL] = settings.ocrModelId.toString()
+                preferences[EMBEDDING_MODEL] = settings.embeddingModelId.toString()
+                preferences[RERANK_MODEL] = settings.rerankModelId.toString()
+                preferences[INDEX_UPLOADS] = settings.indexUploads
                 preferences[OCR_PROMPT] = settings.ocrPrompt
                 preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
                 preferences[COMPRESS_PROMPT] = settings.compressPrompt
@@ -448,6 +454,9 @@ class SettingsStore(
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
                 ocrModelId = preferences[OCR_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
+                embeddingModelId = preferences[EMBEDDING_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
+                rerankModelId = preferences[RERANK_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
+                indexUploads = preferences[INDEX_UPLOADS] ?: true,
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 compressModelId = preferences[COMPRESS_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
@@ -1010,6 +1019,12 @@ data class Settings(
     val enableSuggestion: Boolean = true,
     val suggestionPrompt: String = DEFAULT_SUGGESTION_PROMPT,
     val ocrModelId: Uuid = Uuid.random(),
+    /** Legal RAG: embedding model for project documents (OpenAI-compatible / NVIDIA / Gemini). */
+    val embeddingModelId: Uuid = Uuid.random(),
+    /** Legal RAG: optional reranker applied to the top hybrid candidates. */
+    val rerankModelId: Uuid = Uuid.random(),
+    /** Legal RAG: files uploaded in the Files area are indexed (and embedded) into the Library project. */
+    val indexUploads: Boolean = true,
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,

@@ -57,6 +57,8 @@ private val BUILT_IN_PROVIDER_CATEGORY: Map<Uuid, ProviderCategory> = buildMap {
     put(DEFAULT_GEMINI_OAUTH_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Gemini OAuth
     put(Uuid.parse("6ab18148-c138-4394-a46f-1cd8c8ceaa6d"), ProviderCategory.INTERNATIONAL) // Gemini
     put(Uuid.parse("d5734028-d39b-4d41-9841-fd648d65440e"), ProviderCategory.INTERNATIONAL) // OpenRouter
+    put(DEFAULT_GROQ_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // Groq
+    put(DEFAULT_NVIDIA_PROVIDER_ID, ProviderCategory.INTERNATIONAL) // NVIDIA NIM
     put(Uuid.parse("386e0f29-8228-4512-affe-8fd8add82d88"), ProviderCategory.INTERNATIONAL) // Vercel AI Gateway
     put(Uuid.parse("ff3cde7e-0f65-43d7-8fb2-6475c99f5990"), ProviderCategory.INTERNATIONAL) // xAI
 }

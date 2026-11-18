@@ -430,6 +430,37 @@ class WorkspaceDetailVM(
         }
     }
 
+    private val _bootstrapRunning = MutableStateFlow(false)
+    val bootstrapRunning = _bootstrapRunning.asStateFlow()
+    private val _bootstrapOutput = MutableStateFlow<String?>(null)
+    val bootstrapOutput = _bootstrapOutput.asStateFlow()
+
+    fun bootstrap(profiles: Set<me.rerere.workspace.BootstrapProfile>) {
+        val workspace = state.value.workspace ?: return
+        if (_bootstrapRunning.value) return
+        viewModelScope.launch {
+            _bootstrapRunning.value = true
+            _bootstrapOutput.value = null
+            try {
+                val r = repository.bootstrap(workspace.id, profiles)
+                _bootstrapOutput.value = buildString {
+                    append(if (r.exitCode == 0) "Bootstrap finished" else if (r.timedOut) "Bootstrap timed out" else "Bootstrap finished with errors (exit ${r.exitCode})")
+                    append("\n\n").append(r.stdout.takeLast(4000))
+                    if (r.stderr.isNotBlank()) append("\n").append(r.stderr.takeLast(1500))
+                }
+                refresh()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _bootstrapOutput.value = "Bootstrap failed: ${e.message}"
+            } finally {
+                _bootstrapRunning.value = false
+            }
+        }
+    }
+
+    fun dismissBootstrapOutput() { _bootstrapOutput.value = null }
+
     fun dismissInstallError() {
         _installError.value = null
     }

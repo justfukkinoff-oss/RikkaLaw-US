@@ -337,6 +337,17 @@ class WorkspaceRepository(
         }
     }
 
+    /** Installs RikkaLaw package bundles inside the PRoot rootfs (apt or apk). Can take many minutes. */
+    suspend fun bootstrap(
+        id: String,
+        profiles: Collection<me.rerere.workspace.BootstrapProfile>,
+    ): WorkspaceCommandResult = executeCommand(
+        id = id,
+        command = "sh -s",
+        timeoutMillis = 60 * 60_000L,
+        stdin = me.rerere.workspace.BootstrapProfile.script(profiles).toByteArray(),
+    )
+
     suspend fun startBackground(
         id: String,
         command: String,

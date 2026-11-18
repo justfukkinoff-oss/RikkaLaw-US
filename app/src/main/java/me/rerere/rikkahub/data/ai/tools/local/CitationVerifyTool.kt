@@ -86,6 +86,11 @@ internal fun buildCitationVerifyEnvelope(httpStatus: Int, responseBody: String):
                 )
             }.toString()
         }
+        return buildJsonObject {
+            put("error", "throttled")
+            put("detail", "CourtListener rate limit reached.")
+            put("recovery", "Wait a minute before retrying, and batch citations into fewer calls.")
+        }.toString()
     }
     val items = runCatching { Json.parseToJsonElement(responseBody).jsonArray }.getOrNull()
         ?: return fmEnvelope(
