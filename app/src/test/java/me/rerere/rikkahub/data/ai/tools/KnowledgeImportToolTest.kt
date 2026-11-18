@@ -135,9 +135,9 @@ class KnowledgeImportToolTest {
                     KbSourceFile("corpus/skip.pdf", "skip.pdf", 1),
                 ),
             ),
-            files = mutableMapOf(
-                "src:corpus/a.md" to "# A",
-                "src:corpus/b.md" to "B",
+            sourceTexts = mapOf(
+                "corpus/a.md" to "# A",
+                "corpus/b.md" to "B",
             ),
         )
         val tool = storage.tools().first { it.name == "corpus_import" }
