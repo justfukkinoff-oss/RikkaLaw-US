@@ -75,8 +75,14 @@ This mirrors the anti-hallucination goal of commercial citation checkers (the
    `overwrite` is requested. Matter layout convention is now
    `/workspace/matters/<matter-slug>/{sources,corpus,drafts,notes}` in the workspace file
    area. Remaining: per-project model assignments when embedding models are added.
-5. **Drafting:** docx template library (§2254 & §2255 skeletons, memo templates, records
-   requests) with cite-check status preserved as a review sheet inside each `.docx`.
+5. **Done:** the docx template library — the bundled **legal-drafting** skill: §2254 and
+   §2255 petition skeletons, a legal memorandum, and a public-records request letter
+   (FOIA + state-law shell), a python-docx conversion recipe with base styling, and a
+   mandatory cite-check review sheet embedded as the last table in every `.docx` (one row
+   per authority, verdicts exactly as the verification protocol reported, initials column
+   left for counsel). Unverified citations are bracketed in the body, never formatted as
+   authorities; the Counsel assistant ships with the skill enabled and every default
+   expert inherits it.
 
 ## License
 

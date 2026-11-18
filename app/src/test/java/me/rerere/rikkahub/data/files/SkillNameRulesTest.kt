@@ -67,11 +67,11 @@ class SkillNameRulesTest {
     }
 
     @Test fun `every shipped skill name is spec-valid`() {
-        // Guards the skills this repo ships — the three in assets/default-skills/ (two
-        // auto_load cores plus legal-assistant) and the catalog-only ones under skills/ —
-        // against a rename that would violate the spec.
+        // Guards the skills this repo ships — the four in assets/default-skills/ (two
+        // auto_load cores plus the legal-assistant and legal-drafting profiles) and the
+        // catalog-only ones under skills/ — against a rename that would violate the spec.
         val shipped = listOf(
-            "agent-core", "autonomous-agent", "legal-assistant",
+            "agent-core", "autonomous-agent", "legal-assistant", "legal-drafting",
             "auto-reply", "calculate-hash", "interactive-map",
             "kitchen-adventure", "mood-tracker", "morning-briefing",
             "notification-summarise-and-act", "openclaw-converter", "qr-code", "query-wikipedia",

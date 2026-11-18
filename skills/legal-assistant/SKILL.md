@@ -107,9 +107,10 @@ apk add --no-cache python3 py3-pip curl wget && \
 
 Uses:
 
-- `python-docx` — produce .docx rough drafts (memoranda, §2254/§2255 petition skeletons,
-  FOIA and records-request letters) from templates in `drafts/templates/`; always name the
-  output `...-DRAFT.docx`.
+- `python-docx` — produce .docx rough drafts from the template library in the
+  **legal-drafting** skill (`use_skill legal-drafting`): §2254 / §2255 petition skeletons,
+  a legal memorandum, and public-records request letters, every deliverable ending with
+  the mandatory cite-check review sheet; always name the output `...-DRAFT.docx`.
 - `beautifulsoup4` + `requests`/`curl` — parse scraped court pages and research sources.
 - Keep corpus-building scripts under `/workspace/matters/<matter-slug>/corpus/scripts/`;
   anything the import should pick up stays directly in `corpus/` as `.md` / `.txt` / `.csv`.

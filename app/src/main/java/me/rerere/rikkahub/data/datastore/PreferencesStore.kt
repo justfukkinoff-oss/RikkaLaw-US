@@ -1527,7 +1527,7 @@ internal val COUNSEL_ASSISTANT = Assistant(
     ),
     enableMemory = true,
     enableWebSearch = true,
-    enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS + setOf("legal-assistant"),
+    enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS + setOf("legal-assistant", "legal-drafting"),
 )
 
 internal val DEFAULT_ASSISTANTS = listOf(
