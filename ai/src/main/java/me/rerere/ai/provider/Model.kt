@@ -43,6 +43,7 @@ enum class ModelType {
     IMAGE,
     VIDEO,
     EMBEDDING,
+    RERANK,
 }
 
 @Serializable

@@ -968,6 +968,22 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.LegalResearch)) {
             tools.add(citationVerifyTool(okHttpClient, agentSecretsStore))
+            // On-device case-record index (Projects): hybrid search, quote verification,
+            // page reads and table of authorities. Resolved lazily so tests that build
+            // LocalTools without the legal graph keep working.
+            runCatching {
+                val koin = org.koin.java.KoinJavaComponent.getKoin()
+                val legalIndex = koin.get<me.rerere.rikkahub.legal.rag.LegalIndex>()
+                val legalIngestor = koin.get<me.rerere.rikkahub.legal.rag.LegalIngestor>()
+                val legalRetriever = koin.get<me.rerere.rikkahub.legal.rag.LegalRetriever>()
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalProjectListTool(legalIndex))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalProjectCreateTool(legalIngestor))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalDocumentIngestTool(legalIndex, legalIngestor))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalSearchTool(legalIndex, legalRetriever))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalQuoteCheckTool(legalIndex, legalRetriever))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalDocumentReadTool(legalIndex))
+                tools.add(me.rerere.rikkahub.data.ai.tools.local.legalAuthoritiesTool(legalIndex))
+            }.onFailure { android.util.Log.w("LocalTools", "legal record tools unavailable", it) }
         }
         // web_fetch/web_extract are always-on unless disabled in Search settings, no
         // per-assistant toggle. They are in [LocalToolFilter.UNGROUPED_TOOL_NAMES]: a

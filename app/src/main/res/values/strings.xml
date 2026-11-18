@@ -1229,6 +1229,11 @@
   <string name="setting_provider_page_disabled">Disabled</string>
   <string name="setting_provider_page_edit_model">Edit Model</string>
   <string name="setting_provider_page_embedding_model">Embedding</string>
+  <string name="setting_provider_page_rerank_model">Rerank</string>
+  <string name="setting_model_page_embedding_model">Embedding model</string>
+  <string name="setting_model_page_embedding_model_desc">Embeds project documents for semantic search. Changing it requires re-embedding existing projects. Example: NVIDIA nvidia/llama-3.2-nv-embedqa-1b-v2 or Gemini gemini-embedding-001.</string>
+  <string name="setting_model_page_rerank_model">Rerank model</string>
+  <string name="setting_model_page_rerank_model_desc">Optional. Reorders the top hybrid-search hits by relevance. Exact-quote and citation matches always stay first. Example: NVIDIA nvidia/llama-3.2-nv-rerankqa-1b-v2.</string>
   <string name="setting_provider_page_enable">Enable</string>
   <string name="setting_provider_page_enabled">Enabled</string>
   <string name="setting_provider_page_filter_example">e.g.: GPT-3.5</string>

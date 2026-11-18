@@ -77,6 +77,7 @@ internal fun modelTypeWire(type: ModelType): String = when (type) {
     ModelType.IMAGE -> "image"
     ModelType.VIDEO -> "video"
     ModelType.EMBEDDING -> "embedding"
+    ModelType.RERANK -> "rerank"
 }
 
 /** Lenient parse of a model-type argument; null when the token is not one we know. */
@@ -85,6 +86,7 @@ internal fun parseModelType(raw: String): ModelType? = when (raw.trim().lowercas
     "image" -> ModelType.IMAGE
     "video" -> ModelType.VIDEO
     "embedding", "embed" -> ModelType.EMBEDDING
+    "rerank", "reranker", "ranking" -> ModelType.RERANK
     else -> null
 }
 

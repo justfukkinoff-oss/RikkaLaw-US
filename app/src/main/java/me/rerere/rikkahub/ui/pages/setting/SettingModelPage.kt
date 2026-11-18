@@ -172,6 +172,26 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         }
         item {
             ModelSettingItem(
+                title = stringResource(R.string.setting_model_page_embedding_model),
+                description = stringResource(R.string.setting_model_page_embedding_model_desc),
+                modelId = settings.embeddingModelId,
+                providers = settings.providers,
+                type = ModelType.EMBEDDING,
+                onSelect = { vm.updateSettings(settings.copy(embeddingModelId = it.id)) },
+            )
+        }
+        item {
+            ModelSettingItem(
+                title = stringResource(R.string.setting_model_page_rerank_model),
+                description = stringResource(R.string.setting_model_page_rerank_model_desc),
+                modelId = settings.rerankModelId,
+                providers = settings.providers,
+                type = ModelType.RERANK,
+                onSelect = { vm.updateSettings(settings.copy(rerankModelId = it.id)) },
+            )
+        }
+        item {
+            ModelSettingItem(
                 title = stringResource(R.string.setting_model_page_compress_model),
                 description = stringResource(R.string.setting_model_page_compress_model_desc),
                 modelId = settings.compressModelId,
@@ -475,11 +495,12 @@ private fun ModelSettingItem(
     onSelect: (Model) -> Unit,
     reasoningLevel: ReasoningLevel? = null,
     onUpdateReasoningLevel: ((ReasoningLevel) -> Unit)? = null,
+    type: ModelType = ModelType.CHAT,
 ) {
     val state = rememberModelListState(
         modelId = modelId,
         providers = providers,
-        type = ModelType.CHAT,
+        type = type,
     )
 
     Column {
