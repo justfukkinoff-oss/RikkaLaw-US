@@ -200,7 +200,7 @@ fun SettingSubAgentsPage(
                 contentPadding = innerPadding + PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Dispatch profile selector — five-level posture (拍板: default NEVER).
+                // Dispatch profile selector — five-level posture (decision: default NEVER).
                 item {
                     val profile = settings.subAgentDispatchProfile
                     val prefs = koinInject<SettingsStore>()

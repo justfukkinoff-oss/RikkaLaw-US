@@ -99,15 +99,15 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     var searchQuery by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
     var providerToDelete by remember { mutableStateOf<ProviderSetting?>(null) }
-    // 预配置服务商按 国模/国际/本地 分组展示（见 ProviderCategories），用户自建的归「其他」。
-    // 「已启用」单独置顶成一组，不与品类混排；组内顺序沿用服务商列表里的既有顺序。
+    // Built-in providers are grouped by category (see ProviderCategories); user-added ones go under "Other".
+    // "Enabled" is its own group pinned to the top; order within a group follows the provider list.
     val sections = remember(settings.providers, searchQuery) {
         buildProviderSections(settings.providers, searchQuery)
     }
 
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        // 拖拽只在同一分组内生效：分组归属由品类/启用状态决定，跨组拖过去也会被重新归类，
-        // 把顺序写回服务商列表反而会让行「弹」回原位。搜索态下可见列表是子集，直接不重排。
+        // Dragging only works within a group: group membership comes from category/enabled state, so a
+        // cross-group drop would snap back. While searching the visible list is a subset, so no reordering.
         if (searchQuery.isBlank()) {
             val rows = buildProviderSections(settings.providers, searchQuery).flattenRows()
             val fromRow = rows.getOrNull(from.index)
@@ -337,7 +337,7 @@ private fun ImportProviderButton(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // 主要操作：扫描二维码
+                        // Primary action: scan QR code
                         Button(
                             onClick = {
                                 showImportDialog = false
@@ -366,7 +366,7 @@ private fun ImportProviderButton(
                             }
                         }
 
-                        // 次要操作：从相册选择
+                        // Secondary action: pick from gallery
                         OutlinedButton(
                             onClick = {
                                 showImportDialog = false
@@ -467,7 +467,7 @@ private fun handleImageQRCode(
     context: android.content.Context
 ) {
     runCatching {
-        // 使用ImageUtils解析二维码
+        // Decode the QR code with ImageUtils
         val qrContent = ImageUtils.decodeQRCodeFromUri(context, uri)
 
         if (qrContent.isNullOrEmpty()) {
@@ -616,8 +616,8 @@ private fun ProviderItem(
 }
 
 /**
- * 服务商列表的一个分组（已启用 / 国模 / 国际 / 本地 / 其他）。
- * `key` 用于 stickyHeader 与拖拽时判断是否同组；`titleRes` 是展示用的分组标题。
+ * One group of the provider list (Enabled / category groups / Other).
+ * `key` drives the sticky header and same-group drag checks; `titleRes` is the displayed title.
  */
 private data class ProviderSection(
     val key: String,
@@ -625,7 +625,7 @@ private data class ProviderSection(
     val providers: List<ProviderSetting>,
 )
 
-/** LazyColumn 的行：分组标题或服务商，用于把拖拽的 LazyList 索引映射回服务商。 */
+/** A LazyColumn row (group header or provider), used to map drag indices back to providers. */
 private sealed interface ProviderRow {
     data class Header(@StringRes val titleRes: Int, val key: String) : ProviderRow
     data class Entry(val provider: ProviderSetting, val sectionKey: String) : ProviderRow
@@ -639,8 +639,8 @@ private fun List<ProviderSection>.flattenRows(): List<ProviderRow> = flatMap { s
 }
 
 /**
- * 把服务商列表切成展示用的分组。顺序固定为：已启用 → 国模 → 国际 → 本地 → 其他；
- * 组内保持传入列表的既有顺序（用户手动排序的影响仍在组内保留）。
+ * Splits the provider list into display groups, in fixed order: Enabled, then categories, then Other;
+ * order inside each group follows the input list, so manual sorting is preserved.
  */
 private fun buildProviderSections(
     providers: List<ProviderSetting>,

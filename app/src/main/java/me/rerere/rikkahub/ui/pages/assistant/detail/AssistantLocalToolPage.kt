@@ -108,7 +108,7 @@ private fun AssistantLocalToolContent(
     val localToolFactory = koinInject<LocalTools>()
 
     // Group titles resolved once, outside any non-composable predicate, so the search filter can
-    // match a group by its human name (which is how a Chinese-language user looks for "电池").
+    // match a group by its human name (which is how a user looks for "battery").
     val groupTitles: Map<LocalToolOption, String> = remember(ctx) {
         LocalToolGroups.all.associateWith { ctx.getString(localToolTitleRes(it)) }
     }
