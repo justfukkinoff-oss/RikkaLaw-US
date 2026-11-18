@@ -224,14 +224,14 @@ fun citationVerifyTool(
             field = "token",
         ).getOrElse { return@Tool secretError(it) }
         if (token.isNullOrBlank()) {
-            return@Tool fmEnvelope(
+            return@Tool fmTextPart(fmEnvelope(
                 "missing_token",
                 "A CourtListener API token is required.",
                 "Call request_secret (name=$COURTLISTENER_TOKEN_HINT_NAME, kind=password) to store " +
                     "the token on-device, then retry with token_secret=$COURTLISTENER_TOKEN_HINT_NAME. " +
                     "Ask the user to get a free token at https://www.courtlistener.com/profile/signups/; " +
                     "never collect it in chat.",
-            )
+            ))
         }
 
         val request = Request.Builder()
