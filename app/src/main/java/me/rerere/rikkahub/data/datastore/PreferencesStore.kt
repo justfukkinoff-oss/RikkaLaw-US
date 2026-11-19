@@ -17,6 +17,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import io.pebbletemplates.pebble.PebbleEngine
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -65,7 +68,6 @@ import me.rerere.rikkahub.subagent.SubAgentDispatchProfile
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.toMutableStateFlow
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import me.rerere.tts.provider.TTSProviderSetting
@@ -168,7 +170,7 @@ private fun createSettingsDataStore(context: Context): DataStore<Preferences> {
 
 class SettingsStore(
     context: Context,
-    scope: AppScope,
+    private val scope: AppScope,
 ) : KoinComponent {
     companion object {
         // 版本号
@@ -420,6 +422,203 @@ class SettingsStore(
 
     // 读取失败时绝不能回退为空配置, 否则默认值会被当成用户数据写回, 覆盖全部设置
     // 偶发 IO 错误重试, 仍失败则向上抛出 (文件损坏由 corruptionHandler 处理)
+    /** Restores built-in providers/assistants/TTS defaults (same pass the disk flow applies). */
+    private fun normalizeDefaults(it: Settings): Settings = run {
+            val deletedDefaultIds = it.deletedBuiltInProviderIds
+            var providers = it.providers.ifEmpty {
+                DEFAULT_PROVIDERS.filter { p -> p.id !in deletedDefaultIds }
+            }.toMutableList()
+            // One-shot cleanup (2026-10): the upstream-sponsored built-in providers carrying
+            // affiliate links (AiHubMix / APIMart / 小马算力 / 随想AI网关 / MaruCode / AckAI /
+            // UnifyLLM) are no longer shipped in DEFAULT_PROVIDERS. Fresh installs never seed
+            // them; existing installs already have them, so drop only the rows the user never
+            // touched (still disabled, no API key, no models) and leave a configured one be.
+            providers.removeAll { provider ->
+                provider.builtIn &&
+                    provider.id in REMOVED_SPONSORED_PROVIDER_IDS &&
+                    !provider.enabled &&
+                    provider.models.isEmpty() &&
+                    when (provider) {
+                        is ProviderSetting.OpenAI -> provider.apiKey.isBlank()
+                        is ProviderSetting.Google -> provider.apiKey.isBlank()
+                        is ProviderSetting.Claude -> provider.apiKey.isBlank()
+                        else -> true
+                    }
+            }
+            // For existing installs that pre-date the on-device AICore provider being
+            // promoted to first-place, hoist it to the top so the user does not have to
+            // scroll past every legacy aggregator to find it.
+            val aicoreIndex = providers.indexOfFirst { it is ProviderSetting.AICore }
+            if (aicoreIndex > 0) {
+                val aicoreRow = providers.removeAt(aicoreIndex)
+                providers.add(0, aicoreRow)
+            }
+            DEFAULT_PROVIDERS.forEach { defaultProvider ->
+                if (defaultProvider.id in deletedDefaultIds) return@forEach
+                if (providers.none { it.id == defaultProvider.id }) {
+                    // On-device built-in providers (AICore, LiteRT) are pinned to the top of
+                    // the list in the order they appear in DEFAULT_PROVIDERS. Remote provider
+                    // defaults continue to append at the end so existing users see no
+                    // reordering of their configured remote providers.
+                    when (defaultProvider) {
+                        is ProviderSetting.AICore -> providers.add(0, defaultProvider.copyProvider())
+                        is ProviderSetting.LiteRtLocal -> {
+                            // Insert right after AICore, or at 0 if AICore is absent.
+                            // indexOfFirst returns -1 when absent; -1 + 1 = 0, so insert at 0.
+                            val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
+                            providers.add(insertAt, defaultProvider.copyProvider())
+                        }
+                        is ProviderSetting.LlamaCppLocal -> {
+                            // Insert right after LiteRtLocal, so it groups with the other
+                            // on-device provider instead of appending after every remote
+                            // provider below. Falls back to right after AICore, or 0, if
+                            // LiteRtLocal is absent - same absent-index fallback as above.
+                            val insertAt = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
+                                .let { if (it >= 0) it + 1 else providers.indexOfFirst { p -> p is ProviderSetting.AICore } + 1 }
+                            providers.add(insertAt, defaultProvider.copyProvider())
+                        }
+                        else -> providers.add(defaultProvider.copyProvider())
+                    }
+                }
+            }
+            providers = providers.map { provider ->
+                val defaultProvider = DEFAULT_PROVIDERS.find { it.id == provider.id }
+                if (defaultProvider != null) {
+                    provider.copyProvider(
+                        builtIn = defaultProvider.builtIn,
+                        description = defaultProvider.description,
+                        shortDescription = defaultProvider.shortDescription,
+                    )
+                } else provider
+            }.toMutableList()
+            var assistants = it.assistants.ifEmpty { DEFAULT_ASSISTANTS }.toMutableList()
+            DEFAULT_ASSISTANTS.forEach { defaultAssistant ->
+                if (assistants.none { it.id == defaultAssistant.id }) {
+                    assistants.add(defaultAssistant.copy())
+                }
+            }
+            // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
+            // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
+            // pin agent-core. Users who deliberately added other skills are untouched.
+            assistants = assistants.map { assistant ->
+                val isDefault = DEFAULT_ASSISTANTS.any { it.id == assistant.id }
+                if (isDefault && assistant.enabledSkills.isEmpty()) {
+                    assistant.copy(enabledSkills = setOf("agent-core"))
+                } else assistant
+            }.toMutableList()
+            // One-shot additive enable for newly-bundled default-on skills. Each name is added
+            // to every default assistant exactly once, tracked in autoEnabledDefaultSkills, so a
+            // user who later disables one is not re-opted-in on the next launch. A brand-new
+            // skill cannot have been deliberately disabled before it shipped, so the first add is
+            // always safe.
+            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills
+            if (skillsToSeed.isNotEmpty()) {
+                assistants = assistants.map { assistant ->
+                    if (DEFAULT_ASSISTANTS.any { d -> d.id == assistant.id }) {
+                        assistant.copy(enabledSkills = assistant.enabledSkills + skillsToSeed)
+                    } else assistant
+                }.toMutableList()
+            }
+            val newAutoEnabled = it.autoEnabledDefaultSkills + DEFAULT_AUTO_ENABLED_SKILLS
+            val ttsProviders = it.ttsProviders.ifEmpty { DEFAULT_TTS_PROVIDERS }.toMutableList()
+            DEFAULT_TTS_PROVIDERS.forEach { defaultTTSProvider ->
+                if (ttsProviders.none { provider -> provider.id == defaultTTSProvider.id }) {
+                    ttsProviders.add(defaultTTSProvider.copyProvider())
+                }
+            }
+            it.copy(
+                providers = providers,
+                assistants = assistants,
+                autoEnabledDefaultSkills = newAutoEnabled,
+                ttsProviders = ttsProviders,
+            )
+    }
+
+    /** De-duplicates and drops dangling references (same pass the disk flow applies). */
+    private fun normalizeReferences(settings: Settings): Settings = run {
+            // 去重并清理无效引用
+            val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
+            val validModeInjectionIds = settings.modeInjections.map { it.id }.toSet()
+            val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
+            val validQuickMessageIds = settings.quickMessages.map { it.id }.toSet()
+            val asrProviders = settings.asrProviders.distinctBy { it.id }
+            settings.copy(
+                providers = settings.providers.distinctBy { it.id }.map { provider ->
+                    when (provider) {
+                        is ProviderSetting.OpenAI -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.Google -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.Claude -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.AICore -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.LiteRtLocal -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.LlamaCppLocal -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.Codex -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.Grok -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.GeminiOAuth -> provider.copy(
+                            models = dropDeniedGeminiOAuthModels(provider.models)
+                        )
+                    }
+                },
+                assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
+                    assistant.copy(
+                        // 过滤掉不存在的 MCP 服务器 ID
+                        mcpServers = assistant.mcpServers.filter { serverId ->
+                            serverId in validMcpServerIds
+                        }.toSet(),
+                        // 过滤掉不存在的模式注入 ID
+                        modeInjectionIds = assistant.modeInjectionIds.filter { id ->
+                            id in validModeInjectionIds
+                        }.toSet(),
+                        // 过滤掉不存在的 Lorebook ID
+                        lorebookIds = assistant.lorebookIds.filter { id ->
+                            id in validLorebookIds
+                        }.toSet(),
+                        // 过滤掉不存在的快捷消息 ID
+                        quickMessageIds = assistant.quickMessageIds.filter { id ->
+                            id in validQuickMessageIds
+                        }.toSet()
+                    )
+                },
+                ttsProviders = settings.ttsProviders.distinctBy { it.id },
+                asrProviders = asrProviders,
+                selectedASRProviderId = settings.selectedASRProviderId
+                    ?.takeIf { id -> asrProviders.any { provider -> provider.id == id } }
+                    ?: asrProviders.firstOrNull()?.id,
+                favoriteModels = settings.favoriteModels.filter { uuid ->
+                    settings.providers.flatMap { it.models }.any { it.id == uuid }
+                },
+                modeInjections = settings.modeInjections.distinctBy { it.id },
+                lorebooks = settings.lorebooks.distinctBy { it.id },
+                quickMessages = settings.quickMessages.distinctBy { it.id },
+            )
+    }
+
+    /** The in-memory equivalent of reading [settings] back through [settingsFlowRaw]. */
+    private fun normalize(settings: Settings): Settings = normalizeReferences(normalizeDefaults(settings))
+
     val settingsFlowRaw = dataStore.data
         .retryWhen { cause, attempt ->
             val shouldRetry = cause is IOException && cause !is CorruptionException && attempt < READ_MAX_RETRIES
@@ -645,240 +844,92 @@ class SettingsStore(
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
             )
         }
-        .map {
-            val deletedDefaultIds = it.deletedBuiltInProviderIds
-            var providers = it.providers.ifEmpty {
-                DEFAULT_PROVIDERS.filter { p -> p.id !in deletedDefaultIds }
-            }.toMutableList()
-            // One-shot cleanup (2026-10): the upstream-sponsored built-in providers carrying
-            // affiliate links (AiHubMix / APIMart / 小马算力 / 随想AI网关 / MaruCode / AckAI /
-            // UnifyLLM) are no longer shipped in DEFAULT_PROVIDERS. Fresh installs never seed
-            // them; existing installs already have them, so drop only the rows the user never
-            // touched (still disabled, no API key, no models) and leave a configured one be.
-            providers.removeAll { provider ->
-                provider.builtIn &&
-                    provider.id in REMOVED_SPONSORED_PROVIDER_IDS &&
-                    !provider.enabled &&
-                    provider.models.isEmpty() &&
-                    when (provider) {
-                        is ProviderSetting.OpenAI -> provider.apiKey.isBlank()
-                        is ProviderSetting.Google -> provider.apiKey.isBlank()
-                        is ProviderSetting.Claude -> provider.apiKey.isBlank()
-                        else -> true
-                    }
-            }
-            // For existing installs that pre-date the on-device AICore provider being
-            // promoted to first-place, hoist it to the top so the user does not have to
-            // scroll past every legacy aggregator to find it.
-            val aicoreIndex = providers.indexOfFirst { it is ProviderSetting.AICore }
-            if (aicoreIndex > 0) {
-                val aicoreRow = providers.removeAt(aicoreIndex)
-                providers.add(0, aicoreRow)
-            }
-            DEFAULT_PROVIDERS.forEach { defaultProvider ->
-                if (defaultProvider.id in deletedDefaultIds) return@forEach
-                if (providers.none { it.id == defaultProvider.id }) {
-                    // On-device built-in providers (AICore, LiteRT) are pinned to the top of
-                    // the list in the order they appear in DEFAULT_PROVIDERS. Remote provider
-                    // defaults continue to append at the end so existing users see no
-                    // reordering of their configured remote providers.
-                    when (defaultProvider) {
-                        is ProviderSetting.AICore -> providers.add(0, defaultProvider.copyProvider())
-                        is ProviderSetting.LiteRtLocal -> {
-                            // Insert right after AICore, or at 0 if AICore is absent.
-                            // indexOfFirst returns -1 when absent; -1 + 1 = 0, so insert at 0.
-                            val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
-                            providers.add(insertAt, defaultProvider.copyProvider())
-                        }
-                        is ProviderSetting.LlamaCppLocal -> {
-                            // Insert right after LiteRtLocal, so it groups with the other
-                            // on-device provider instead of appending after every remote
-                            // provider below. Falls back to right after AICore, or 0, if
-                            // LiteRtLocal is absent - same absent-index fallback as above.
-                            val insertAt = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
-                                .let { if (it >= 0) it + 1 else providers.indexOfFirst { p -> p is ProviderSetting.AICore } + 1 }
-                            providers.add(insertAt, defaultProvider.copyProvider())
-                        }
-                        else -> providers.add(defaultProvider.copyProvider())
-                    }
-                }
-            }
-            providers = providers.map { provider ->
-                val defaultProvider = DEFAULT_PROVIDERS.find { it.id == provider.id }
-                if (defaultProvider != null) {
-                    provider.copyProvider(
-                        builtIn = defaultProvider.builtIn,
-                        description = defaultProvider.description,
-                        shortDescription = defaultProvider.shortDescription,
-                    )
-                } else provider
-            }.toMutableList()
-            var assistants = it.assistants.ifEmpty { DEFAULT_ASSISTANTS }.toMutableList()
-            DEFAULT_ASSISTANTS.forEach { defaultAssistant ->
-                if (assistants.none { it.id == defaultAssistant.id }) {
-                    assistants.add(defaultAssistant.copy())
-                }
-            }
-            // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
-            // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
-            // pin agent-core. Users who deliberately added other skills are untouched.
-            assistants = assistants.map { assistant ->
-                val isDefault = DEFAULT_ASSISTANTS.any { it.id == assistant.id }
-                if (isDefault && assistant.enabledSkills.isEmpty()) {
-                    assistant.copy(enabledSkills = setOf("agent-core"))
-                } else assistant
-            }.toMutableList()
-            // One-shot additive enable for newly-bundled default-on skills. Each name is added
-            // to every default assistant exactly once, tracked in autoEnabledDefaultSkills, so a
-            // user who later disables one is not re-opted-in on the next launch. A brand-new
-            // skill cannot have been deliberately disabled before it shipped, so the first add is
-            // always safe.
-            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills
-            if (skillsToSeed.isNotEmpty()) {
-                assistants = assistants.map { assistant ->
-                    if (DEFAULT_ASSISTANTS.any { d -> d.id == assistant.id }) {
-                        assistant.copy(enabledSkills = assistant.enabledSkills + skillsToSeed)
-                    } else assistant
-                }.toMutableList()
-            }
-            val newAutoEnabled = it.autoEnabledDefaultSkills + DEFAULT_AUTO_ENABLED_SKILLS
-            val ttsProviders = it.ttsProviders.ifEmpty { DEFAULT_TTS_PROVIDERS }.toMutableList()
-            DEFAULT_TTS_PROVIDERS.forEach { defaultTTSProvider ->
-                if (ttsProviders.none { provider -> provider.id == defaultTTSProvider.id }) {
-                    ttsProviders.add(defaultTTSProvider.copyProvider())
-                }
-            }
-            it.copy(
-                providers = providers,
-                assistants = assistants,
-                autoEnabledDefaultSkills = newAutoEnabled,
-                ttsProviders = ttsProviders,
-            )
-        }
-        .map { settings ->
-            // 去重并清理无效引用
-            val validMcpServerIds = settings.mcpServers.map { it.id }.toSet()
-            val validModeInjectionIds = settings.modeInjections.map { it.id }.toSet()
-            val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
-            val validQuickMessageIds = settings.quickMessages.map { it.id }.toSet()
-            val asrProviders = settings.asrProviders.distinctBy { it.id }
-            settings.copy(
-                providers = settings.providers.distinctBy { it.id }.map { provider ->
-                    when (provider) {
-                        is ProviderSetting.OpenAI -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.Google -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.Claude -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.AICore -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.LiteRtLocal -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.LlamaCppLocal -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.Codex -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.Grok -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
-                        is ProviderSetting.GeminiOAuth -> provider.copy(
-                            models = dropDeniedGeminiOAuthModels(provider.models)
-                        )
-                    }
-                },
-                assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
-                    assistant.copy(
-                        // 过滤掉不存在的 MCP 服务器 ID
-                        mcpServers = assistant.mcpServers.filter { serverId ->
-                            serverId in validMcpServerIds
-                        }.toSet(),
-                        // 过滤掉不存在的模式注入 ID
-                        modeInjectionIds = assistant.modeInjectionIds.filter { id ->
-                            id in validModeInjectionIds
-                        }.toSet(),
-                        // 过滤掉不存在的 Lorebook ID
-                        lorebookIds = assistant.lorebookIds.filter { id ->
-                            id in validLorebookIds
-                        }.toSet(),
-                        // 过滤掉不存在的快捷消息 ID
-                        quickMessageIds = assistant.quickMessageIds.filter { id ->
-                            id in validQuickMessageIds
-                        }.toSet()
-                    )
-                },
-                ttsProviders = settings.ttsProviders.distinctBy { it.id },
-                asrProviders = asrProviders,
-                selectedASRProviderId = settings.selectedASRProviderId
-                    ?.takeIf { id -> asrProviders.any { provider -> provider.id == id } }
-                    ?: asrProviders.firstOrNull()?.id,
-                favoriteModels = settings.favoriteModels.filter { uuid ->
-                    settings.providers.flatMap { it.models }.any { it.id == uuid }
-                },
-                modeInjections = settings.modeInjections.distinctBy { it.id },
-                lorebooks = settings.lorebooks.distinctBy { it.id },
-                quickMessages = settings.quickMessages.distinctBy { it.id },
-            )
-        }
+        .map { normalizeDefaults(it) }
+        .map { normalizeReferences(it) }
         .onEach {
             get<PebbleEngine>().templateCache.invalidateAll()
         }
 
-    val settingsFlow = settingsFlowRaw
-        .distinctUntilChanged()
-        .toMutableStateFlow(scope, Settings.dummy())
+    /**
+     * In-memory settings, authoritative once loaded. Writes update it synchronously (see
+     * [applyInMemory]) and disk emissions are only applied while no write is in flight:
+     * DataStore re-emits every intermediate snapshot asynchronously, and applying a stale
+     * one after a newer in-memory value made bound text fields jump back a few characters
+     * and the IME re-type them (the "keeps typing the previous letter" bug).
+     */
+    val settingsFlow: MutableStateFlow<Settings> = MutableStateFlow(Settings.dummy())
+    private val writesInFlight = java.util.concurrent.atomic.AtomicInteger(0)
+    private val transformLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Last snapshot known to be on disk (for rollback when a write fails). */
+    @Volatile
+    private var lastPersisted: Settings? = null
+
+    init {
+        scope.launch {
+            runCatching {
+                settingsFlowRaw.distinctUntilChanged().collect { fromDisk ->
+                    if (writesInFlight.get() == 0 || settingsFlow.value.init) {
+                        settingsFlow.value = fromDisk
+                        lastPersisted = fromDisk
+                    }
+                }
+            }.onFailure { Log.e(TAG, "Error while collecting settings: ${it.message}", it) }
+        }
+    }
 
     suspend fun update(settings: Settings) {
-        if(settings.init) {
+        if (settings.init) {
             Log.w(TAG, "Cannot update dummy settings")
             return
         }
-        transformLock.withLock {
-            updateInternal(settings)
-        }
+        applyInMemory { settings }
+        persistLatest()
+    }
+
+    suspend fun update(fn: (Settings) -> Settings) {
+        applyInMemory(fn)
+        persistLatest()
     }
 
     /**
-     * Unlocked write path: every caller must already hold [transformLock]. Writes disk
-     * before memory: if `dataStore.edit` throws (IOException, disk full, a serialization
-     * bug), `settingsFlow` must still match what's actually on disk rather than a value
-     * that was never persisted, or observers would react to a change that silently rolls
-     * back on the next app launch.
+     * Updates [settingsFlow] synchronously, before any disk I/O, so a TextField bound to a
+     * setting sees each keystroke immediately instead of lagging behind queued DataStore
+     * writes (the lag is what made fields re-type previous characters after edits).
      */
-    private suspend fun updateInternal(settings: Settings) {
-        persistSettings(dataStore, settings)
-        settingsFlow.value = settings
+    private fun applyInMemory(fn: (Settings) -> Settings) {
+        settingsFlow.update { current ->
+            val next = fn(current)
+            runCatching { normalize(next) }.getOrDefault(next)
+        }
+        runCatching { get<PebbleEngine>().templateCache.invalidateAll() }
     }
 
-    /** Serialises every settings write: both transform-based `update {fn}` calls and
-     *  direct `update(Settings)` calls (e.g. a WebDAV/S3 restore replacing the whole
-     *  settings object), so concurrent callers don't race each other. Without this lock,
-     *  two writes dispatched in quick succession could both read `settingsFlow.value`
-     *  before either has persisted, then each write its own delta off the same stale
-     *  base: last writer wins, the earlier change is silently dropped. The most-visible
-     *  repro: rapid-fire taps on per-assistant tool toggles where every other tap
-     *  appeared to revert; a restore racing an in-flight transform update is the same
-     *  class of bug with worse stakes. */
-    private val transformLock = kotlinx.coroutines.sync.Mutex()
-
-    suspend fun update(fn: (Settings) -> Settings) {
+    /**
+     * Serialises disk writes and always persists the *latest* in-memory snapshot, so a burst
+     * of keystrokes collapses into a few writes and an older snapshot can never land on disk
+     * after a newer one. Without the lock two writers could interleave (rapid tool-toggle taps
+     * appearing to revert, or a backup restore racing a transform).
+     */
+    private suspend fun persistLatest() {
         transformLock.withLock {
-            updateInternal(fn(settingsFlow.value))
+            val target = settingsFlow.value
+            if (target.init || target === lastPersisted) return
+            writesInFlight.incrementAndGet()
+            try {
+                persistSettings(dataStore, target)
+                lastPersisted = target
+            } catch (e: Throwable) {
+                // Keep memory consistent with disk if nothing newer has been typed since.
+                lastPersisted?.let { prev -> settingsFlow.compareAndSet(target, prev) }
+                throw e
+            } finally {
+                // Let DataStore's trailing emissions for this write drain before re-accepting disk values.
+                scope.launch {
+                    kotlinx.coroutines.delay(750)
+                    writesInFlight.decrementAndGet()
+                }
+            }
         }
     }
 

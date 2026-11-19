@@ -118,17 +118,34 @@ as one or more PRs that must pass the `debug-apk` CI build before merge.
 ### Phase 7 — Drafting & docx
 - [x] python-docx templates inside the workspace (legal-drafting skill).
 - [x] Native Kotlin `docx_create` tool (pure OOXML writer, no POI) so drafting works with no
-      workspace installed: pleading caption, headings, numbered paragraphs, footnotes,
-      table of authorities, cite-check sheet.
+      workspace installed: pleading caption, headings, numbered paragraphs, footnotes.
+      A table of authorities or cite-check sheet only appears if the model writes it as
+      content; neither is generated automatically from citations yet.
+- [ ] Auto-generated table of authorities and cite-check sheet from `legal_authorities`.
 
 ### Phase 8 — Workspace bootstrap
 - [x] One-tap PRoot bootstrap profiles: `core` (python3, pip, curl, wget, git, jq),
       `research` (requests, beautifulsoup4, lxml, pdfplumber, pypdf), `drafting`
       (python-docx, docxtpl), `ocr` (tesseract-ocr, ocrmypdf), `citations` (eyecite).
 - [x] Termux bridge stays as the alternative when Termux is already installed.
+- [x] Bootstrap runs as a background process with step i/n progress, a live log, Stop, and
+      "Run in background"; it re-attaches when the screen is reopened. Distro packages are
+      installed in one batch (per-package fallback). Full log: `/root/.rikkalaw/bootstrap.log`.
 
 ### Phase 9 — MCP OAuth hardening
 - [x] OAuth 2.1 coordinator, metadata discovery, loopback callback, token refresh exist.
 - [x] DCR fallback to manual client id / secret / scopes, POST probe for resource metadata,
       token expiry, re-authorize and sign-out in the MCP settings page.
 - [ ] Audit end-to-end against a real OAuth MCP server.
+
+### Field fixes (Nov 2026)
+- [x] Legal Research tools (legal_search, legal_document_read, citation_verify, case law,
+      U.S. Code, docx_create, …) are always on for every assistant and sub-agent; before
+      this, only the Counsel assistant had them.
+- [x] Files → Uploads shows an AI-index panel (embedded / pending / not embedded / failed /
+      needs OCR, the current embedding model, and live progress), a status for each file,
+      and "Index for AI search", "Embed now", and "Choose model" actions.
+- [x] Embedding starts automatically for pending documents once an embedding model is
+      selected.
+- [x] Settings text fields no longer re-type earlier characters: the settings store updates
+      memory first, coalesces disk writes, and ignores stale DataStore re-emissions.

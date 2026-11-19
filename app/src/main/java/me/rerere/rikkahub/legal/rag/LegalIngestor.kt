@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -62,6 +64,27 @@ class LegalIngestor(
 
     private fun report(key: String, p: IngestProgress?) = _progress.update { m ->
         if (p == null) m - key else m + (key to p)
+    }
+
+    init {
+        // Resume embedding whenever an embedding model becomes available (first selection, a
+        // model change, or app start after an interrupted run). Only documents that were never
+        // embedded or were cut off mid-run are picked up, so a failing model does not loop.
+        scope.launch {
+            settingsStore.settingsFlow
+                .map { it.resolveSlot(it.embeddingModelId)?.label }
+                .distinctUntilChanged()
+                .collect { label ->
+                    if (label == null) return@collect
+                    runCatching {
+                        index.listProjects().filter { it.autoEmbed }.forEach { p ->
+                            index.listDocuments(p.id)
+                                .filter { it.embedStatus == EmbedStatus.NONE || it.embedStatus == EmbedStatus.PENDING }
+                                .forEach { d -> runCatching { embedDocument(d.id) }.onFailure { Log.w(TAG, "embedding failed for ${d.id}", it) } }
+                        }
+                    }.onFailure { Log.w(TAG, "embedding resume failed", it) }
+                }
+        }
     }
 
     fun projectDir(projectId: String): File =
@@ -262,13 +285,15 @@ class LegalIngestor(
     suspend fun embedDocument(docId: Long) = embedLock.withLock {
         val doc = index.getDocument(docId) ?: return@withLock
         val slot = settingsStore.settingsFlow.value.resolveSlot(settingsStore.settingsFlow.value.embeddingModelId)
+        val key = "doc:$docId"
         if (slot == null) {
             index.setEmbedStatus(docId, EmbedStatus.NONE, "No embedding model selected (Settings → Models → Embedding)")
+            report(key, IngestProgress(docId, doc.title, IngestProgress.Stage.DONE))
             return@withLock
         }
         val total = index.countChunks(docId)
         index.setEmbedStatus(docId, EmbedStatus.PENDING)
-        val key = "doc:$docId"
+        report(key, IngestProgress(docId, doc.title, IngestProgress.Stage.EMBEDDING, index.countChunks(docId, embeddedOnly = true), total))
         try {
             while (true) {
                 val batch = index.chunksWithoutEmbedding(docId, EMBED_BATCH)

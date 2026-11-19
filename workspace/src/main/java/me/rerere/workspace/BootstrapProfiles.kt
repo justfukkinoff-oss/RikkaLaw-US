@@ -56,59 +56,92 @@ enum class BootstrapProfile(
          * POSIX sh script installing [profiles] (CORE is always included). pip packages that a
          * distro package already provides are skipped by pip itself ("already satisfied").
          */
+        /** Marker the app parses for a progress bar: `## STEP <i>/<n> <label>`. */
+        const val STEP_PREFIX = "## STEP "
+        const val DONE_MARKER = "== done"
+        const val FAILED_MARKER = "== failed:"
+        /** Path of the generated script inside the rootfs (the workspace files area). */
+        const val SCRIPT_PATH = "/workspace/.rikkalaw/bootstrap.sh"
+
+        /**
+         * POSIX sh script installing [profiles] (CORE is always included).
+         *
+         * Distro packages are installed in ONE apt/apk transaction (per-package installs are
+         * very slow under PRoot because every call re-reads the package database); only if the
+         * batch fails does it fall back to one package at a time so a single missing package
+         * does not block the rest. Package-manager output is streamed to stdout (and appended
+         * to /root/.rikkalaw/bootstrap.log) so the app can show live progress.
+         */
         fun script(profiles: Collection<BootstrapProfile>): String {
             val selected = (listOf(CORE) + profiles).distinct().sortedBy { it.ordinal }
             fun q(list: List<String>) = list.joinToString(" ")
             val apt = selected.flatMap { it.apt }.distinct()
             val apk = selected.flatMap { it.apk }.distinct()
-            // OCR on apk has no ocrmypdf package; everywhere else the distro package is preferred.
+            // OCR on apt uses the distro ocrmypdf; apk has no package so pip provides it.
             val pipApt = selected.flatMap { it.pip }.distinct().filterNot { it == "ocrmypdf" }
             val pipApk = selected.flatMap { it.pip }.distinct()
+            val d = "$"
             return """
                 |#!/bin/sh
                 |# RikkaLaw workspace bootstrap: ${selected.joinToString(", ") { it.id }}
                 |mkdir -p /root/.rikkalaw
                 |LOG=/root/.rikkalaw/bootstrap.log
-                |echo "== bootstrap $(date) : ${selected.joinToString(" ") { it.id }}" >> "${'$'}LOG"
-                |export DEBIAN_FRONTEND=noninteractive PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore
+                |RC=/root/.rikkalaw/rc
+                |echo "== bootstrap ${d}(date) : ${selected.joinToString(" ") { it.id }}" | tee -a "${d}LOG"
+                |export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true TZ=Etc/UTC
+                |export PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore PIP_PROGRESS_BAR=off
+                |# run CMD..., streaming output to stdout + log, and return its exit status
+                |run() { { "${d}@"; echo ${d}? > "${d}RC"; } 2>&1 | tee -a "${d}LOG"; return "${d}(cat "${d}RC" 2>/dev/null || echo 1)"; }
                 |if command -v apt-get >/dev/null 2>&1; then PM=apt
                 |elif command -v apk >/dev/null 2>&1; then PM=apk
-                |else echo "Unsupported rootfs: need apt-get (Ubuntu/Debian) or apk (Alpine)"; exit 2; fi
+                |else echo "Unsupported rootfs: need apt-get (Ubuntu/Debian) or apk (Alpine)"; echo "$FAILED_MARKER unsupported-rootfs"; exit 2; fi
                 |FAILED=""
-                |step() { echo ">> ${'$'}*"; }
-                |if [ "${'$'}PM" = apt ]; then
-                |  APT="apt-get -y -q -o APT::Sandbox::User=root -o Dpkg::Options::=--force-confnew"
-                |  step "apt-get update"
-                |  ${'$'}APT update >> "${'$'}LOG" 2>&1 || FAILED="${'$'}FAILED apt-update"
-                |  for p in ${q(apt)}; do
-                |    if dpkg -s "${'$'}p" >/dev/null 2>&1; then continue; fi
-                |    step "apt install ${'$'}p"
-                |    ${'$'}APT install --no-install-recommends "${'$'}p" >> "${'$'}LOG" 2>&1 || FAILED="${'$'}FAILED ${'$'}p"
-                |  done
+                |N=4
+                |step() { echo "$STEP_PREFIX${d}1/${d}N ${d}2"; }
+                |if [ "${d}PM" = apt ]; then
+                |  ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime 2>/dev/null; echo Etc/UTC > /etc/timezone 2>/dev/null
+                |  APT="apt-get -y -q -o APT::Sandbox::User=root -o Dpkg::Options::=--force-confnew -o Dpkg::Use-Pty=0"
+                |  step 1 "Updating package lists"
+                |  run ${d}APT update || FAILED="${d}FAILED apt-update"
+                |  TODO=""
+                |  for p in ${q(apt)}; do dpkg -s "${d}p" >/dev/null 2>&1 || TODO="${d}TODO ${d}p"; done
+                |  step 2 "Installing system packages:${d}TODO"
+                |  if [ -n "${d}TODO" ]; then
+                |    if ! run ${d}APT install --no-install-recommends ${d}TODO; then
+                |      echo "Batch install failed; retrying one package at a time"
+                |      run ${d}APT -f install
+                |      for p in ${d}TODO; do
+                |        dpkg -s "${d}p" >/dev/null 2>&1 && continue
+                |        echo ">> ${d}p"
+                |        run ${d}APT install --no-install-recommends "${d}p" || FAILED="${d}FAILED ${d}p"
+                |      done
+                |    fi
+                |  else echo "All system packages already installed"; fi
+                |  run ${d}APT clean
                 |  PIPS="${q(pipApt)}"
                 |else
-                |  step "apk update"
-                |  apk update >> "${'$'}LOG" 2>&1 || FAILED="${'$'}FAILED apk-update"
-                |  for p in ${q(apk)}; do
-                |    step "apk add ${'$'}p"
-                |    apk add --no-cache "${'$'}p" >> "${'$'}LOG" 2>&1 || FAILED="${'$'}FAILED ${'$'}p"
-                |  done
+                |  step 1 "Updating package index"
+                |  run apk update || FAILED="${d}FAILED apk-update"
+                |  step 2 "Installing system packages"
+                |  if ! run apk add --no-cache ${q(apk)}; then
+                |    for p in ${q(apk)}; do run apk add --no-cache "${d}p" || FAILED="${d}FAILED ${d}p"; done
+                |  fi
                 |  PIPS="${q(pipApk)}"
                 |fi
-                |if [ -n "${'$'}PIPS" ]; then
+                |step 3 "Installing Python packages: ${d}PIPS"
+                |if [ -n "${d}PIPS" ]; then
                 |  if command -v python3 >/dev/null 2>&1; then
-                |    for p in ${'$'}PIPS; do
-                |      step "pip install ${'$'}p"
-                |      python3 -m pip install --no-cache-dir --break-system-packages "${'$'}p" >> "${'$'}LOG" 2>&1 \
-                |        || python3 -m pip install --no-cache-dir "${'$'}p" >> "${'$'}LOG" 2>&1 \
-                |        || FAILED="${'$'}FAILED pip:${'$'}p"
-                |    done
-                |  else FAILED="${'$'}FAILED python3-missing"; fi
+                |    if ! run python3 -m pip install --no-cache-dir --break-system-packages ${d}PIPS; then
+                |      for p in ${d}PIPS; do
+                |        run python3 -m pip install --no-cache-dir --break-system-packages "${d}p" || FAILED="${d}FAILED pip:${d}p"
+                |      done
+                |    fi
+                |  else FAILED="${d}FAILED python3-missing"; fi
                 |fi
-                |echo
+                |step 4 "Verifying"
                 |echo "== installed tools"
                 |for t in python3 pip3 curl wget git jq pandoc tesseract ocrmypdf pdftotext; do
-                |  command -v "${'$'}t" >/dev/null 2>&1 && echo "  ok  ${'$'}t"
+                |  if command -v "${d}t" >/dev/null 2>&1; then echo "  ok  ${d}t"; fi
                 |done
                 |if command -v python3 >/dev/null 2>&1; then
                 |  python3 - <<'PY'
@@ -120,9 +153,16 @@ enum class BootstrapProfile(
                 |        pass
                 |PY
                 |fi
-                |if [ -n "${'$'}FAILED" ]; then echo "== failed:${'$'}FAILED (see ${'$'}LOG)"; exit 1; fi
-                |echo "== done (log: ${'$'}LOG)"
+                |if [ -n "${d}FAILED" ]; then echo "$FAILED_MARKER${d}FAILED (log: ${d}LOG)"; exit 1; fi
+                |echo "$DONE_MARKER (log: ${d}LOG)"
                 |""".trimMargin()
+        }
+
+        /** Parses the last `## STEP i/n label` line from live output. */
+        fun parseStep(output: String): Triple<Int, Int, String>? {
+            val line = output.lineSequence().lastOrNull { it.startsWith(STEP_PREFIX) } ?: return null
+            val m = Regex("""^## STEP (\d+)/(\d+) ?(.*)$""").find(line) ?: return null
+            return Triple(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].trim())
         }
     }
 }

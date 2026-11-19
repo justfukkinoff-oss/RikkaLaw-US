@@ -337,16 +337,29 @@ class WorkspaceRepository(
         }
     }
 
-    /** Installs RikkaLaw package bundles inside the PRoot rootfs (apt or apk). Can take many minutes. */
-    suspend fun bootstrap(
+    /**
+     * Starts installing RikkaLaw package bundles inside the PRoot rootfs as a background
+     * process (apt or apk; can take many minutes). Poll it with [backgroundStatus]; output
+     * carries `## STEP i/n` markers (see [me.rerere.workspace.BootstrapProfile.parseStep]).
+     */
+    suspend fun startBootstrap(
         id: String,
         profiles: Collection<me.rerere.workspace.BootstrapProfile>,
-    ): WorkspaceCommandResult = executeCommand(
-        id = id,
-        command = "sh -s",
-        timeoutMillis = 60 * 60_000L,
-        stdin = me.rerere.workspace.BootstrapProfile.script(profiles).toByteArray(),
-    )
+    ): BackgroundStatus {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        withContext(Dispatchers.IO) {
+            manager.ensureWorkspace(workspace.root)
+            val f = java.io.File(manager.filesDir(workspace.root), ".rikkalaw/bootstrap.sh")
+            f.parentFile?.mkdirs()
+            f.writeText(me.rerere.workspace.BootstrapProfile.script(profiles))
+        }
+        return startBackground(id, "sh ${me.rerere.workspace.BootstrapProfile.SCRIPT_PATH}")
+    }
+
+    /** A bootstrap run that is still going (e.g. after leaving and reopening the screen). */
+    suspend fun runningBootstrap(id: String): BackgroundStatus? =
+        runCatching { listBackground(id) }.getOrDefault(emptyList())
+            .lastOrNull { it.running && it.command.contains(".rikkalaw/bootstrap.sh") }
 
     suspend fun startBackground(
         id: String,

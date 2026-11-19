@@ -125,9 +125,108 @@ class WorkspaceDetailVM(
         _settingsError.value = null
     }
 
+    /** Live state of a toolkit bootstrap running as a background process in the rootfs. */
+    data class BootstrapProgress(
+        val taskId: String,
+        val step: Int,
+        val total: Int,
+        val label: String,
+        val tail: String,
+        val elapsedSec: Long,
+    )
+
+    private val _bootstrapRunning = MutableStateFlow(false)
+    val bootstrapRunning = _bootstrapRunning.asStateFlow()
+    private val _bootstrapProgress = MutableStateFlow<BootstrapProgress?>(null)
+    val bootstrapProgress = _bootstrapProgress.asStateFlow()
+    /** True while the live progress dialog is visible (user may hide it and keep it running). */
+    private val _bootstrapDialogVisible = MutableStateFlow(false)
+    val bootstrapDialogVisible = _bootstrapDialogVisible.asStateFlow()
+    private val _bootstrapOutput = MutableStateFlow<String?>(null)
+    val bootstrapOutput = _bootstrapOutput.asStateFlow()
+    private var bootstrapPoller: kotlinx.coroutines.Job? = null
+
+    fun bootstrap(profiles: Set<me.rerere.workspace.BootstrapProfile>) {
+        if (_bootstrapRunning.value) return
+        _bootstrapRunning.value = true
+        _bootstrapOutput.value = null
+        viewModelScope.launch {
+            try {
+                val status = repository.startBootstrap(id, profiles)
+                _bootstrapDialogVisible.value = true
+                pollBootstrap(status.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _bootstrapRunning.value = false
+                _bootstrapOutput.value = "Could not start the toolkit install: ${e.message}"
+            }
+        }
+    }
+
+    /** Re-attaches to a bootstrap that kept running after the screen was closed. */
+    private fun attachRunningBootstrap() {
+        viewModelScope.launch {
+            val running = repository.runningBootstrap(id) ?: return@launch
+            _bootstrapRunning.value = true
+            pollBootstrap(running.id)
+        }
+    }
+
+    private fun pollBootstrap(taskId: String) {
+        bootstrapPoller?.cancel()
+        bootstrapPoller = viewModelScope.launch {
+            while (true) {
+                val st = runCatching { repository.backgroundStatus(id, taskId) }.getOrNull()
+                if (st == null) {
+                    _bootstrapRunning.value = false
+                    _bootstrapProgress.value = null
+                    _bootstrapOutput.value = "The toolkit install process is no longer available " +
+                        "(the app may have been closed). Run it again; already-installed packages are skipped."
+                    break
+                }
+                val out = st.stdout + if (st.stderr.isNotBlank()) "\n" + st.stderr else ""
+                val step = me.rerere.workspace.BootstrapProfile.parseStep(st.stdout)
+                _bootstrapProgress.value = BootstrapProgress(
+                    taskId = taskId,
+                    step = step?.first ?: 0,
+                    total = step?.second ?: 4,
+                    label = step?.third?.take(160) ?: "Starting…",
+                    tail = out.lines().takeLast(14).joinToString("\n"),
+                    elapsedSec = (System.currentTimeMillis() - st.startedAtMillis) / 1000,
+                )
+                if (!st.running) {
+                    _bootstrapRunning.value = false
+                    _bootstrapProgress.value = null
+                    _bootstrapDialogVisible.value = false
+                    val ok = st.exitCode == 0
+                    _bootstrapOutput.value = buildString {
+                        append(if (ok) "Toolkits installed." else "Toolkit install finished with problems (exit ${st.exitCode}).")
+                        append("\nFull log: /root/.rikkalaw/bootstrap.log\n\n")
+                        append(out.takeLast(5000))
+                    }
+                    refresh()
+                    break
+                }
+                kotlinx.coroutines.delay(1500)
+            }
+        }
+    }
+
+    fun showBootstrapDialog() { _bootstrapDialogVisible.value = true }
+    fun hideBootstrapDialog() { _bootstrapDialogVisible.value = false }
+
+    fun stopBootstrap() {
+        val taskId = _bootstrapProgress.value?.taskId ?: return
+        viewModelScope.launch { runCatching { repository.killBackground(id, taskId) } }
+    }
+
+    fun dismissBootstrapOutput() { _bootstrapOutput.value = null }
+
     init {
         loadWorkspace()
         refresh()
+        attachRunningBootstrap()
     }
 
     fun selectArea(area: WorkspaceStorageArea) {
@@ -430,36 +529,6 @@ class WorkspaceDetailVM(
         }
     }
 
-    private val _bootstrapRunning = MutableStateFlow(false)
-    val bootstrapRunning = _bootstrapRunning.asStateFlow()
-    private val _bootstrapOutput = MutableStateFlow<String?>(null)
-    val bootstrapOutput = _bootstrapOutput.asStateFlow()
-
-    fun bootstrap(profiles: Set<me.rerere.workspace.BootstrapProfile>) {
-        val workspace = state.value.workspace ?: return
-        if (_bootstrapRunning.value) return
-        viewModelScope.launch {
-            _bootstrapRunning.value = true
-            _bootstrapOutput.value = null
-            try {
-                val r = repository.bootstrap(workspace.id, profiles)
-                _bootstrapOutput.value = buildString {
-                    append(if (r.exitCode == 0) "Bootstrap finished" else if (r.timedOut) "Bootstrap timed out" else "Bootstrap finished with errors (exit ${r.exitCode})")
-                    append("\n\n").append(r.stdout.takeLast(4000))
-                    if (r.stderr.isNotBlank()) append("\n").append(r.stderr.takeLast(1500))
-                }
-                refresh()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                _bootstrapOutput.value = "Bootstrap failed: ${e.message}"
-            } finally {
-                _bootstrapRunning.value = false
-            }
-        }
-    }
-
-    fun dismissBootstrapOutput() { _bootstrapOutput.value = null }
 
     fun dismissInstallError() {
         _installError.value = null

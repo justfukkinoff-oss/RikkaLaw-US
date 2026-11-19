@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,6 +124,8 @@ fun WorkspaceDetailPage(id: String) {
     var showBootstrapDialog by remember { mutableStateOf(false) }
     val bootstrapRunning by vm.bootstrapRunning.collectAsStateWithLifecycle()
     val bootstrapOutput by vm.bootstrapOutput.collectAsStateWithLifecycle()
+    val bootstrapProgress by vm.bootstrapProgress.collectAsStateWithLifecycle()
+    val bootstrapDialogVisible by vm.bootstrapDialogVisible.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val filePicker = rememberLauncherForActivityResult(
@@ -244,7 +247,8 @@ fun WorkspaceDetailPage(id: String) {
                     installProgress = installProgress,
                     onInstallRootfs = { showInstallDialog = true },
                     bootstrapRunning = bootstrapRunning,
-                    onBootstrap = { showBootstrapDialog = true },
+                    bootstrapProgress = bootstrapProgress,
+                    onBootstrap = { if (bootstrapRunning) vm.showBootstrapDialog() else showBootstrapDialog = true },
                     onToolApprovalChange = vm::setToolApproval,
                     onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                 )
@@ -364,6 +368,43 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
+    val liveBootstrap = bootstrapProgress
+    if (bootstrapDialogVisible && liveBootstrap != null) {
+        AlertDialog(
+            onDismissRequest = vm::hideBootstrapDialog,
+            title = { Text("Installing workspace toolkits") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Step ${liveBootstrap.step} of ${liveBootstrap.total} · ${liveBootstrap.elapsedSec / 60}m ${liveBootstrap.elapsedSec % 60}s",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(liveBootstrap.label, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                    LinearProgressIndicator(
+                        progress = { (liveBootstrap.step.coerceAtLeast(0).toFloat() / liveBootstrap.total.coerceAtLeast(1)).coerceIn(0.02f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(
+                        "Package installs inside the sandbox can take 10–30 minutes. You can hide this and keep using the app; keep it open in the background until it finishes.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        liveBootstrap.tail.ifBlank { "Waiting for output…" },
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 220.dp)
+                            .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = vm::hideBootstrapDialog) { Text("Run in background") } },
+            dismissButton = { TextButton(onClick = vm::stopBootstrap) { Text("Stop") } },
+        )
+    }
+
     bootstrapOutput?.let { output ->
         AlertDialog(
             onDismissRequest = vm::dismissBootstrapOutput,
@@ -460,6 +501,7 @@ private fun WorkspaceBasicPage(
     installProgress: RootfsInstallProgress?,
     onInstallRootfs: () -> Unit,
     bootstrapRunning: Boolean,
+    bootstrapProgress: WorkspaceDetailVM.BootstrapProgress?,
     onBootstrap: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
@@ -523,12 +565,25 @@ private fun WorkspaceBasicPage(
                             if (rootfsReady) {
                                 androidx.compose.material3.OutlinedButton(
                                     onClick = onBootstrap,
-                                    enabled = !installing && !bootstrapRunning,
+                                    enabled = !installing,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Text(if (bootstrapRunning) "Installing toolkits…" else "Install legal toolkits (python, OCR, docx…)")
+                                    Text(
+                                        if (bootstrapRunning) {
+                                            bootstrapProgress?.let { "Installing toolkits… step ${it.step}/${it.total} (tap for details)" }
+                                                ?: "Installing toolkits… (tap for details)"
+                                        } else "Install legal toolkits (python, OCR, docx…)"
+                                    )
                                 }
-                                if (bootstrapRunning) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                if (bootstrapRunning) {
+                                    val bp = bootstrapProgress
+                                    if (bp != null && bp.step > 0) {
+                                        LinearProgressIndicator(
+                                            progress = { bp.step.toFloat() / bp.total.coerceAtLeast(1) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    } else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
                             }
                         }
                     },
