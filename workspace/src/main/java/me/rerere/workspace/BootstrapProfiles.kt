@@ -39,14 +39,16 @@ enum class BootstrapProfile(
         "tesseract (English), ocrmypdf, ghostscript — offline OCR for scanned records",
         apt = listOf("tesseract-ocr", "tesseract-ocr-eng", "ocrmypdf", "ghostscript"),
         apk = listOf("tesseract-ocr", "tesseract-ocr-data-eng", "ghostscript"),
-        pip = listOf("ocrmypdf"),
+        // distro ocrmypdf needs deprecation>=2.1 once pip upgrades Pillow/pdfminer (`~=` is shell-safe unquoted)
+        pip = listOf("ocrmypdf", "deprecation~=2.1"),
     ),
     CITATIONS(
         "citations", "Citations",
         "eyecite + reporters-db + courts-db (Free Law Project citation parsing)",
-        apt = emptyList(),
-        apk = emptyList(),
-        pip = listOf("eyecite", "reporters-db", "courts-db"),
+        // eyecite -> fast-diff-match-patch has no aarch64 wheel and must be compiled
+        apt = listOf("build-essential", "python3-dev"),
+        apk = listOf("build-base", "python3-dev"),
+        pip = listOf("fast-diff-match-patch", "eyecite", "reporters-db", "courts-db"),
     );
 
     companion object {
