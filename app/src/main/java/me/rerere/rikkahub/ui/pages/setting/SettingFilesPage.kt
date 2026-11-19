@@ -1,5 +1,10 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.legal.rag.resolveSlot
+import me.rerere.rikkahub.legal.rag.LIBRARY_PROJECT_ID
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Clean
@@ -86,6 +91,7 @@ fun SettingFilesPage(
     filesManager: FilesManager = koinInject(),
     settingsStore: SettingsStore = koinInject(),
     ingestor: LegalIngestor = koinInject(),
+    legalIndex: me.rerere.rikkahub.legal.rag.LegalIndex = koinInject(),
     appScope: AppScope = koinInject(),
 ) {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
@@ -107,6 +113,32 @@ fun SettingFilesPage(
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
     val files by filesManager.observe(selectedFolder).collectAsStateWithLifecycle(initialValue = emptyList())
+    val navController = me.rerere.rikkahub.ui.context.LocalNavController.current
+    var indexRefresh by remember { mutableStateOf(0) }
+    val library = rememberLibraryIndex(legalIndex, ingestor, indexRefresh)
+    val embeddingConfigured = settings.resolveSlot(settings.embeddingModelId) != null
+
+    // Index files that are in the upload folder but not (yet) in the Library project — files
+    // uploaded before the switch was on, uploaded via chat, or whose indexing failed.
+    fun indexFiles(targets: List<ManagedFileEntity>) {
+        if (targets.isEmpty()) return
+        appScope.launch {
+            var ok = 0; val errors = ArrayList<String>()
+            for (f in targets) {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        ingestor.ingestFile(ingestor.libraryProject().id, filesManager.getFile(f), f.displayName)
+                    }
+                }.onSuccess { ok++ }.onFailure { errors += "${f.displayName}: ${it.message}" }
+            }
+            indexRefresh++
+            toaster.show(buildString {
+                append("Indexed $ok of ${targets.size} file(s) for AI search")
+                if (!embeddingConfigured) append(" (keyword only — no embedding model set)")
+                if (errors.isNotEmpty()) append(". ").append(errors.joinToString("; ").take(200))
+            })
+        }
+    }
 
     // Direct upload. Files land in the managed upload folder (usable as chat attachments and by
     // the file tools) and, when enabled, are also indexed into the Library project for RAG.
@@ -122,14 +154,20 @@ fun SettingFilesPage(
                 saved++
                 if (index) {
                     runCatching {
-                        ingestor.ingestFile(ingestor.libraryProject().id, filesManager.getFile(entity), entity.displayName)
+                        withContext(Dispatchers.IO) {
+                            ingestor.ingestFile(ingestor.libraryProject().id, filesManager.getFile(entity), entity.displayName)
+                        }
                     }.onSuccess { indexed++ }.onFailure { errors += "${entity.displayName}: ${it.message}" }
+                    indexRefresh++
                 }
             }
             uploading = false
             toaster.show(buildString {
                 append("Uploaded $saved file(s)")
-                if (index) append(", indexed $indexed into Library")
+                if (index) {
+                    append(", $indexed indexed for AI search")
+                    append(if (embeddingConfigured) "; embedding started" else " (keyword only — no embedding model set)")
+                } else append("; AI indexing is off")
                 if (errors.isNotEmpty()) append(". ").append(errors.joinToString("; ").take(200))
             })
         }
@@ -259,6 +297,25 @@ fun SettingFilesPage(
                 )
             }
 
+            if (selectedFolder == FileFolders.UPLOAD) {
+                val unindexed = files.filter { library.docFor(it.displayName) == null && library.progressFor(null, it.displayName) == null }
+                LibraryIndexPanel(
+                    snapshot = library,
+                    settings = settings,
+                    indexUploads = settings.indexUploads,
+                    unindexedCount = unindexed.size,
+                    onRetryEmbedding = {
+                        ingestor.scheduleProjectEmbedding(LIBRARY_PROJECT_ID)
+                        indexRefresh++
+                        toaster.show("Embedding started")
+                    },
+                    onIndexMissing = { indexFiles(unindexed) },
+                    onOpenModels = { navController.navigate(Screen.SettingModels) },
+                    onOpenProjects = { navController.navigate(Screen.Projects) },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+
             if (files.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -282,10 +339,16 @@ fun SettingFilesPage(
                     columns = StaggeredGridCells.Fixed(2)
                 ) {
                     items(files, key = { it.id }) { file ->
+                        val indexStatus = if (selectedFolder == FileFolders.UPLOAD) {
+                            val doc = library.docFor(file.displayName)
+                            fileIndexStatus(doc, library.progressFor(doc, file.displayName), embeddingConfigured)
+                        } else null
                         FileItem(
                             file = file,
                             fileOnDisk = filesManager.getFile(file),
-                            onDelete = { pendingDelete = file }
+                            onDelete = { pendingDelete = file },
+                            indexStatus = indexStatus,
+                            onIndex = { indexFiles(listOf(file)) },
                         )
                     }
                 }
@@ -392,6 +455,8 @@ private fun FileItem(
     file: ManagedFileEntity,
     fileOnDisk: File,
     onDelete: () -> Unit,
+    indexStatus: Pair<String, Boolean>? = null,
+    onIndex: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -457,6 +522,20 @@ private fun FileItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (indexStatus != null) {
+                    val (label, isProblem) = indexStatus
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isProblem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    if (label.startsWith("Not indexed") || label.startsWith("Failed")) {
+                        androidx.compose.material3.TextButton(onClick = onIndex) { Text("Index for AI search") }
+                    }
+                }
             }
         }
     }

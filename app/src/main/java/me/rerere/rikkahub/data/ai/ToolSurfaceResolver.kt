@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -39,6 +40,12 @@ import kotlin.uuid.Uuid
  */
 object ToolSurfaceResolver {
 
+    /** Option groups every assistant receives regardless of its saved tool selection. */
+    val ALWAYS_ON: List<LocalToolOption> = listOf(LocalToolOption.LegalResearch)
+
+    fun withLegalCore(options: List<LocalToolOption>): List<LocalToolOption> =
+        (options + ALWAYS_ON).distinct()
+
     /**
      * The ONE place the app asks [LocalTools] for a surface. `assistant.localTools` is the
      * canonical option list for every caller (headless paths included — they pass the
@@ -49,7 +56,9 @@ object ToolSurfaceResolver {
         assistant: Assistant,
         context: ToolInvocationContext,
     ): List<Tool> = localTools.getTools(
-        options = assistant.localTools,
+        // RikkaLaw: the legal record / research / drafting tools are part of the product, not
+        // an opt-in group — every assistant (and every surface derived from it) gets them.
+        options = withLegalCore(assistant.localTools),
         invocationContext = context,
         // P2-02 - the per-tool deny-list rides along with the option list it refines.
         disabledToolNames = assistant.disabledLocalTools,
